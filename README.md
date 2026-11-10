@@ -29,9 +29,8 @@ For a Yamcs 5.14 server you already run. Yamcs FOPS is two pieces: the plugin
 `yamcs-fops` (a jar, the web UI inside) and the `fops` worker (a Python
 package of the same name, with its core in Rust), installed on the Yamcs host.
 
-> Not published yet: until then, build both from this repository
-> ([Development](#development)): the jar is `plugin/target/yamcs-fops-*.jar`,
-> the worker `target/release/fops`.
+> The plugin is not published yet: until then, build it from this repository
+> ([Development](#development)): the jar is `plugin/target/yamcs-fops-*.jar`.
 
 ### 1. Install the worker
 
