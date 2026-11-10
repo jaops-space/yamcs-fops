@@ -27,10 +27,8 @@ How the worker is built, and the split between Rust and Python:
 
 For a Yamcs 5.14 server you already run. Yamcs FOPS is two pieces: the plugin
 `yamcs-fops` (a jar, the web UI inside) and the `fops` worker (a Python
-package of the same name, with its core in Rust), installed on the Yamcs host.
-
-> The plugin is not published yet: until then, build it from this repository
-> ([Development](#development)): the jar is `plugin/target/yamcs-fops-*.jar`.
+package of the same name, with its core in Rust), installed on the Yamcs host. Both are released together, with the same
+version: the plugin on Maven Central, the worker on PyPI.
 
 ### 1. Install the worker
 
@@ -63,8 +61,12 @@ In a Maven Yamcs project (`yamcs-maven-plugin`), add to the `pom.xml`:
 </dependency>
 ```
 
-In a Yamcs installed from its package or tarball, copy the jar to
-`lib/ext/` instead. The jar has no other dependencies.
+In a Yamcs installed from its package or tarball, download the jar from
+Maven Central into `lib/ext/` instead. It has no other dependencies:
+
+```bash
+curl -fLo lib/ext/yamcs-fops-0.1.0.jar https://repo1.maven.org/maven2/com/jaops/yamcs/yamcs-fops/0.1.0/yamcs-fops-0.1.0.jar
+```
 
 ### 3. Configure it
 
