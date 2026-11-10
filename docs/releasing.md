@@ -1,5 +1,36 @@
 # Releasing
 
+One version for both pieces: the tag `v<version>` releases the Python
+package, and `distribution/release.sh` releases the Yamcs plugin with it.
+
+## The Yamcs plugin `com.jaops.yamcs:yamcs-fops`
+
+```bash
+distribution/release.sh
+```
+
+asks for the version (default: the pom's without `-SNAPSHOT`), sets it in
+`plugin/pom.xml`, `dev/yamcs/pom.xml` and `Cargo.toml`, commits, tags
+`v<version>` (unless the tag exists), builds the web UI and the jar from a
+clean clone of the commit with the profile `jaops-release` (sources, javadoc,
+GPG signature with the Jaops release key `C56E028076F3CCB9`) and, when you
+confirm, uploads them to the Central Portal. Then:
+
+1. Publish the deployment at
+   <https://central.sonatype.com/publishing/deployments> (it is not
+   published automatically).
+2. The script has set the next `-SNAPSHOT` version and committed it. Push:
+
+   ```bash
+   git push origin main v<version>
+   ```
+
+   A new tag publishes the Python package of that version (below).
+
+It needs, on the machine that runs it: the Jaops signing key in GPG, and the
+Central Portal token of the Jaops account as the server `central-jaops` in
+`~/.m2/settings.xml` (as for the other `com.jaops.yamcs` plugins), and npm.
+
 ## The Python package `yamcs-fops`
 
 `pip install yamcs-fops` installs the `fops` command (the worker and the

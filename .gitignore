@@ -7,3 +7,4 @@
 /dev/yamcs/target/
 /dev/logs/
 __pycache__/
+/distribution/target/

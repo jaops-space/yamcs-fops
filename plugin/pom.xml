@@ -6,19 +6,42 @@
   <artifactId>yamcs-fops</artifactId>
   <version>0.1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
-  <name>Yamcs fops</name>
+  <name>Yamcs FOPS</name>
   <description>
-    The fops Yamcs plugin: the HTTP API under /fops/api/{instance}/ that lists the
-    procedures, starts one `fops run` worker per execution and controls it, and
-    the fops Yamcs-web extension (built in ../web).
+    Flight operations procedures for Yamcs: the HTTP API under /fops/api/{instance}/ that lists the
+    procedures, starts one `fops run` worker per execution and controls it, and the Procedures pages
+    of Yamcs-web. The worker is the Python package yamcs-fops (pip install yamcs-fops).
   </description>
+  <url>https://github.com/jaops-space/yamcs-fops</url>
 
   <licenses>
     <license>
-      <name>GNU Affero General Public License v3.0</name>
+      <name>GNU Affero General Public License (AGPL)</name>
       <url>https://www.gnu.org/licenses/agpl-3.0.html</url>
     </license>
   </licenses>
+
+  <scm>
+    <connection>scm:git:https://github.com/jaops-space/yamcs-fops.git</connection>
+    <developerConnection>scm:git:git@github.com:jaops-space/yamcs-fops.git</developerConnection>
+    <url>https://github.com/jaops-space/yamcs-fops</url>
+    <tag>HEAD</tag>
+  </scm>
+
+  <organization>
+    <name>Jaops</name>
+    <url>https://jaops.com</url>
+  </organization>
+
+  <developers>
+    <developer>
+      <id>jaops</id>
+      <name>Jaops</name>
+      <email>yamcs@jaops.com</email>
+      <organization>Jaops</organization>
+      <organizationUrl>https://jaops.com</organizationUrl>
+    </developer>
+  </developers>
 
   <properties>
     <yamcsVersion>5.14.0</yamcsVersion>
@@ -77,4 +100,78 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!-- Release to Maven Central: distribution/release.sh -->
+    <profile>
+      <id>jaops-release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>3.3.1</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>3.6.3</version>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <release>17</release>
+              <author>false</author>
+              <links>
+                <link>https://docs.yamcs.org/javadoc/yamcs/latest/</link>
+              </links>
+              <doclint>none</doclint>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>3.2.2</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <!-- Jaops Release Signing <yamcs@jaops.com> -->
+              <keyname>C56E028076F3CCB9</keyname>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>0.11.0</version>
+            <extensions>true</extensions>
+            <configuration>
+              <!-- Token of the Jaops account on central.sonatype.com, in ~/.m2/settings.xml -->
+              <publishingServerId>central-jaops</publishingServerId>
+              <autoPublish>false</autoPublish>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
