@@ -1,0 +1,33 @@
+services:
+  - class: org.yamcs.http.HttpServer
+    args:
+      port: 8090
+
+# Relative to target/yamcs: mvn clean removes the archive (and fops's as-run journals).
+dataDir: yamcs-data
+
+instances:
+  - simulator
+
+secretKey: changeme
+
+# The procedure bucket is the repository's procedures/ folder (relative to
+# target/yamcs): edits on disk show at once, edits in Yamcs-web land there.
+buckets:
+  - name: fops-procedures-simulator
+    path: ../../../../procedures
+
+yamcs-web:
+  tag: "fops dev"
+
+fops:
+  # relative to target/yamcs, where yamcs:run starts Yamcs
+  executable: ../../../../target/release/fops
+  promptWarningDelay: 60
+  controllerGracePeriod: 10
+  instances:
+    simulator:
+      # buckets fops-procedures-simulator and fops-asrun-simulator (the defaults);
+      # the first is procedures/ (buckets: above)
+      processor: realtime
+      traceLimit: 100

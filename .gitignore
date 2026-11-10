@@ -1,0 +1,9 @@
+# SPELL sources and manuals, kept for reference
+/spell/
+
+# Build output
+/target/
+/plugin/target/
+/dev/yamcs/target/
+/dev/logs/
+__pycache__/

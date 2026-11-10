@@ -1,0 +1,120 @@
+{
+  "fops procedure": {
+    "prefix": "fproc",
+    "description": "A procedure file: docstring, imports, procedure() and a first step",
+    "body": [
+      "\"\"\"${1:What the procedure does.}\"\"\"",
+      "from fops import procedure, send",
+      "",
+      "proc = procedure(",
+      "    \"${2:Procedure name}\",",
+      "    version=\"${3:1.0}\",",
+      "    description=__doc__,",
+      "    requires=[${4}],",
+      ")",
+      "",
+      "",
+      "@proc.step(\"${5:First step}\", goal=${6})",
+      "def ${7:first_step}():",
+      "    ${0:pass}",
+      ""
+    ]
+  },
+  "fops step": {
+    "prefix": "fstep",
+    "description": "@proc.step: a step with a goal",
+    "body": [
+      "@proc.step(\"${1:Step name}\", goal=${2})",
+      "def ${3:step}():",
+      "    ${0:pass}"
+    ]
+  },
+  "fops step (all conditions)": {
+    "prefix": "fstepfull",
+    "description": "@proc.step with requires, goal, invariant, ensures and continuations",
+    "body": [
+      "@proc.step(",
+      "    \"${1:Step name}\",",
+      "    requires=${2:None},",
+      "    goal=${3:None},",
+      "    invariant=${4:None},",
+      "    ensures=${5:None},",
+      "    within=${6:10},",
+      "    on_unconfirmed=\"${7|ask,continue,abort,restart|}\",",
+      "    on_aborted=\"${8|abort,ask,continue,restart|}\",",
+      ")",
+      "def ${9:step}():",
+      "    ${0:pass}"
+    ]
+  },
+  "fops cleanup step": {
+    "prefix": "fcleanup",
+    "description": "A cleanup step: also runs when the procedure aborts or finishes early",
+    "body": [
+      "@proc.step(\"${1:Back to a safe state}\", goal=${2}, cleanup=True)",
+      "def ${3:cleanup}():",
+      "    ${0:pass}"
+    ]
+  },
+  "fops watch": {
+    "prefix": "fwatch",
+    "description": "proc.watch with a handler: runs when the condition becomes true",
+    "body": [
+      "@proc.watch(${1:condition}, then=\"${2|abort,pause,log|}\")",
+      "def ${3:handler}():",
+      "    \"\"\"${4:What happened and what the handler does}\"\"\"",
+      "    ${0:pass}"
+    ]
+  },
+  "fops send": {
+    "prefix": "fsend",
+    "description": "send a command and confirm its effect",
+    "body": "send(${1:COMMAND}(${2}), confirm=${3:condition}, within=${4:10})$0"
+  },
+  "fops send (background)": {
+    "prefix": "fsendbg",
+    "description": "send without waiting, then wait for it",
+    "body": [
+      "${1:handle} = send(${2:COMMAND}(${3}), wait=False)",
+      "$0",
+      "$1.wait()"
+    ]
+  },
+  "fops verify": {
+    "prefix": "fverify",
+    "description": "verify conditions (within seconds)",
+    "body": "verify(${1:condition}, within=${2:10})$0"
+  },
+  "fops wait_until": {
+    "prefix": "fwaituntil",
+    "description": "wait until a condition holds",
+    "body": "wait_until(${1:condition}, within=${2:60})$0"
+  },
+  "fops run": {
+    "prefix": "frun",
+    "description": "run another procedure (a sub-procedure) and wait for it",
+    "body": "run(\"${1:procedure.py}\", args={${2}})$0"
+  },
+  "fops ask options": {
+    "prefix": "fask",
+    "description": "ask the operator to choose",
+    "body": [
+      "if ask(\"${1:Question?}\", [\"${2:GO}\", \"${3:NO-GO}\"]) != \"$2\":",
+      "    abort(\"${4:no-go}\")",
+      "$0"
+    ]
+  },
+  "fops snapshot": {
+    "prefix": "fsnap",
+    "description": "read several parameters in one sample",
+    "body": [
+      "${1:p} = snapshot(${2:params})",
+      "log(\"${3:...}\" % ($1[${4:param}],))$0"
+    ]
+  },
+  "fops Arg": {
+    "prefix": "farg",
+    "description": "a procedure argument for procedure(args={...})",
+    "body": "\"${1:name}\": Arg(${2|int,float,str,bool|}, default=${3}, description=\"${4}\"),$0"
+  }
+}

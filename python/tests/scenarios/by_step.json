@@ -1,0 +1,10 @@
+[
+ [{"type":"started"}, {"cmd":"set_options","by_step":true}],
+ [{"type":"paused","reason":"start"}, {"cmd":"resume"}],
+ [{"type":"paused","reason":"step"}, {"cmd":"step"}],
+ [{"type":"paused","reason":"step"}, {"cmd":"resume"}],
+ [{"type":"paused","reason":"step"}, [{"cmd":"set_options","by_step":false},{"cmd":"resume"}]],
+ [{"type":"prompt","kind":"text"}, {"cmd":"answer","id":1,"value":"x"}],
+ [{"type":"prompt","kind":"number"}, {"cmd":"answer","id":2,"value":"7"}],
+ [{"type":"prompt","kind":"options"}, {"cmd":"answer","id":3,"value":"GO"}]
+]

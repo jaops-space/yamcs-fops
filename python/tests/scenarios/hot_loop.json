@@ -1,0 +1,7 @@
+[
+ [{"type":"suppressed"}, [{"sleep":0.3},{"cmd":"pause"}]],
+ [{"type":"paused"}, [{"cmd":"get_variables","request_id":1},{"cmd":"skip"}]],
+ [{"type":"paused","reason":"skip"}, [{"cmd":"goto_line","line":11},{"cmd":"eval","request_id":2,"expr":"n = -1000; n"}]],
+ [{"type":"eval_result"}, {"cmd":"run_to","line":13}],
+ [{"type":"paused","reason":"run_to"}, [{"cmd":"get_variables","request_id":3},{"cmd":"abort"}]]
+]

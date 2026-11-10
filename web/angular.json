@@ -1,0 +1,38 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "cli": { "analytics": false },
+  "newProjectRoot": "projects",
+  "projects": {
+    "fops": {
+      "root": "",
+      "sourceRoot": "src",
+      "projectType": "application",
+      "prefix": "fops",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": { "base": "dist", "browser": "" },
+            "index": false,
+            "browser": "src/main.ts",
+            "tsConfig": "tsconfig.json",
+            "outputHashing": "none",
+            "styles": ["src/styles.css"],
+            "polyfills": []
+          },
+          "configurations": {
+            "production": {
+              "optimization": true,
+              "extractLicenses": true,
+              "sourceMap": false,
+              "budgets": [{ "type": "initial", "maximumWarning": "3mb", "maximumError": "6mb" }]
+            },
+            "development": { "optimization": false, "extractLicenses": false, "sourceMap": true }
+          },
+          "defaultConfiguration": "production"
+        }
+      }
+    }
+  }
+}

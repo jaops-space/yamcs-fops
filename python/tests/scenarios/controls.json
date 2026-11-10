@@ -1,0 +1,12 @@
+[
+ [{"type":"paused","line":24}, [{"cmd":"set_variable","request_id":3,"name":"a","expr":"100"},{"cmd":"skip"}]],
+ [{"type":"paused","reason":"skip"}, {"cmd":"goto_line","line":22}],
+ [{"type":"paused","reason":"goto"}, {"cmd":"step"}],
+ [{"type":"paused","reason":"step"}, {"cmd":"step_over"}],
+ [{"type":"paused","reason":"step"}, {"cmd":"run_to","line":27}],
+ [{"type":"paused","reason":"run_to"}, [{"cmd":"get_variables","request_id":6},{"cmd":"resume"}]],
+ [{"type":"prompt","kind":"text"}, [{"cmd":"eval","request_id":7,"expr":"i"},{"cmd":"answer","id":1,"value":""}]],
+ [{"type":"prompt","kind":"number"}, [{"cmd":"answer","id":2,"value":"abc"},{"cmd":"answer","id":2,"value":"4.5"}]],
+ [{"type":"prompt","kind":"options"}, [{"cmd":"answer","id":3,"value":"MAYBE"},{"cmd":"answer","id":3,"value":"GO"}]],
+ [{"type":"finished"}, [{"cmd":"get_variables","request_id":8},{"cmd":"eval","request_id":9,"expr":"TOTAL"},{"sleep":0.3}]]
+]

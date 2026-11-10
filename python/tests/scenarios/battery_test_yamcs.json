@@ -1,0 +1,9 @@
+[
+ [{"type":"prompt","kind":"command"}, {"cmd":"answer","id":"$id","value":"SEND"}],
+ [{"type":"prompt","kind":"text"}, {"cmd":"answer","id":"$id","value":""}],
+ [{"type":"prompt","kind":"number"}, {"cmd":"answer","id":"$id","value":"1"}],
+ [{"type":"prompt","kind":"command"}, {"cmd":"answer","id":"$id","value":"SEND"}],
+ [{"type":"prompt","kind":"command"}, {"cmd":"answer","id":"$id","value":"CANCEL"}],
+ [{"type":"prompt","kind":"options"}, {"cmd":"answer","id":"$id","value":"ABORT"}],
+ [{"type":"prompt","kind":"command"}, {"cmd":"answer","id":"$id","value":"SEND"}]
+]
