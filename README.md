@@ -26,8 +26,8 @@ How the worker is built, and the split between Rust and Python:
 ## Add fops to your Yamcs
 
 For a Yamcs 5.14 server you already run. Yamcs FOPS is two pieces: the plugin
-`yamcs-fops` (a jar, the web UI inside) and the `fops` worker (a program
-with an embedded Python), installed on the Yamcs host.
+`yamcs-fops` (a jar, the web UI inside) and the `fops` worker (a Python
+package of the same name, with its core in Rust), installed on the Yamcs host.
 
 > Not published yet: until then, build both from this repository
 > ([Development](#development)): the jar is `plugin/target/yamcs-fops-*.jar`,
@@ -35,15 +35,22 @@ with an embedded Python), installed on the Yamcs host.
 
 ### 1. Install the worker
 
-Python 3.12 or later on the Yamcs host:
+Python 3.12 or later on the Yamcs host (Linux, x86_64 or aarch64). In a
+virtual environment of its own, for example `/opt/fops`:
 
 ```bash
-pip install yamcs-fops
+python3 -m venv /opt/fops
 ```
 
-The package is `yamcs-fops`, like the plugin. It installs the `fops` command and the `fops` Python package that
-procedures import. Install it where whoever runs Yamcs finds `fops` on the
-PATH, or note where it went (`which fops`) for the configuration below.
+```bash
+/opt/fops/bin/pip install yamcs-fops
+```
+
+The package is `yamcs-fops`, like the plugin. It installs the `fops` command
+(`/opt/fops/bin/fops`) and the `fops` Python package that procedures import.
+Procedures run in this Python: install there what they import besides `fops`
+(`pip install 'yamcs-fops[client]'` adds `yamcs-client`, for
+`fops.yamcs_client()`).
 
 ### 2. Add the plugin to Yamcs
 
@@ -67,7 +74,7 @@ procedures:
 
 ```yaml
 fops:
-  executable: fops        # or the full path of the worker
+  executable: /opt/fops/bin/fops   # or just fops, if on the PATH of Yamcs
   instances:
     myinstance:
       processor: realtime
@@ -172,6 +179,8 @@ come from stdin):
 ./target/release/fops run procedures/power_cycle.py --control \
     --yamcs http://localhost:8090 --instance simulator --asrun asrun.jsonl
 ```
+
+Releasing the Python package `yamcs-fops`: [docs/releasing.md](docs/releasing.md).
 
 ## A procedure
 

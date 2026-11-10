@@ -19,7 +19,7 @@ pub struct BenchArgs {
 }
 
 pub fn run(a: BenchArgs) -> Result<()> {
-    let exe = std::env::current_exe()?;
+    let exe = crate::self_exe()?;
     let mut configs: Vec<(String, Vec<String>)> = vec![
         ("off (no tracing)".into(), vec!["--trace-mode".into(), "off".into()]),
         ("legacy settrace (SPELL-style)".into(), vec!["--trace-mode".into(), "legacy".into()]),

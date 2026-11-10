@@ -141,7 +141,7 @@ pub fn run(args: RunnerArgs) -> Result<()> {
     });
     let exe = match &args.executable {
         Some(e) => e.clone(),
-        None => std::env::current_exe()?,
+        None => crate::self_exe()?,
     };
     for d in ["blobs", "snapshots", "execs"] {
         std::fs::create_dir_all(args.data.join(d))?;

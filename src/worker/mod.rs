@@ -76,11 +76,14 @@ pub struct WorkerArgs {
     pub yamcs: YamcsConfig,
 }
 
-/// Directory of the `fops` Python package.
-pub fn python_dir() -> PathBuf {
-    std::env::var_os("FOPS_PYTHON")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/python")))
+/// Directory of the `fops` Python package: `FOPS_PYTHON`, else this
+/// repository's `python/`, except in the Python package, where it is installed.
+pub fn python_dir() -> Option<PathBuf> {
+    match std::env::var_os("FOPS_PYTHON") {
+        Some(d) => Some(PathBuf::from(d)),
+        None if crate::is_extension() => None,
+        None => Some(PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/python"))),
+    }
 }
 
 /// Puts `dirs`, then the working directory, first on `sys.path`. The server
@@ -205,7 +208,7 @@ pub fn run(args: WorkerArgs) -> Result<i32> {
     Python::initialize();
     let (status, message, line, elapsed) = Python::attach(|py| -> PyResult<(String, String, Option<u32>, f64)> {
         py.import("sys")?.getattr("modules")?.set_item("_fops", lang::module(py)?)?;
-        let mut dirs = vec![python_dir()];
+        let mut dirs: Vec<PathBuf> = python_dir().into_iter().collect();
         if let Some(dir) = procedure.parent() {
             dirs.push(dir.to_path_buf());
         }
@@ -289,7 +292,7 @@ pub fn run(args: WorkerArgs) -> Result<i32> {
 pub fn run_tool(module: &str, argv: Vec<String>, extra_path: Option<PathBuf>) -> Result<i32> {
     Python::initialize();
     Python::attach(|py| -> PyResult<i32> {
-        let mut dirs = vec![python_dir()];
+        let mut dirs: Vec<PathBuf> = python_dir().into_iter().collect();
         dirs.extend(extra_path);
         prepend_sys_path(py, &dirs)?;
         // Procedure operations are only available in a running worker.

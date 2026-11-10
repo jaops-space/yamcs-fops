@@ -1,0 +1,54 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+# The worker (`fops run`), the tools (`fops check`, `fops mdb-gen`, ...) and the
+# `fops` Python package that procedures import. The Yamcs plugin is the Maven
+# artifact com.jaops.yamcs:yamcs-fops.
+[project]
+name = "yamcs-fops"
+description = "Flight operations procedures for Yamcs: the worker and the procedure language"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
+authors = [{ name = "JAOPS Inc." }]
+keywords = ["yamcs", "procedures", "spacecraft", "operations"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+# fops.yamcs_client(): the yamcs-client package, for what fops does not cover
+client = ["yamcs-client"]
+
+[project.scripts]
+fops = "fops_cli._native:main"
+
+[project.urls]
+Repository = "https://github.com/jaops-space/yamcs-fops"
+
+[tool.maturin]
+bindings = "pyo3"
+module-name = "fops_cli._native"
+python-source = "python"
+python-packages = ["fops"]
+# the sdist: the Rust crate and the Python packages, not the plugin, UI, demo or extension
+exclude = [
+    "python/fops/__pycache__/**",
+    { path = "plugin/**", format = "sdist" },
+    { path = "web/**", format = "sdist" },
+    { path = "vscode/**", format = "sdist" },
+    { path = "dev/**", format = "sdist" },
+    { path = "procedures/**", format = "sdist" },
+    { path = "docs/**", format = "sdist" },
+    { path = "python/tests/**", format = "sdist" },
+    { path = ".github/**", format = "sdist" },
+    { path = ".vscode/**", format = "sdist" },
+]
+strip = true

@@ -5,6 +5,11 @@ use std::{env, path::PathBuf, process::Command};
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-env-changed=PYO3_BUILD_EXTENSION_MODULE");
+    // The Python extension (maturin) does not link libpython.
+    if env::var_os("PYO3_BUILD_EXTENSION_MODULE").is_some() {
+        return;
+    }
     let out = Command::new(env::var("PYO3_PYTHON").unwrap_or_else(|_| "python3".into()))
         .args(["-c", "import sysconfig as s; print(s.get_config_var('LIBDIR')); print(s.get_config_var('LDLIBRARY')); print(s.get_config_var('INSTSONAME'))"])
         .output()
