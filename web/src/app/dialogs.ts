@@ -14,7 +14,7 @@ import { Prefs, PrefsService } from './prefs';
 
 @Component({
   selector: 'fops-confirm',
-  imports: [WebappSdkModule, UtcPipe],
+  imports: [WebappSdkModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h2 mat-dialog-title>{{ data.title }}</h2>
@@ -283,7 +283,7 @@ export interface GotoData {
 /** SPELL 5.5: go to a step (label) or a line. Returns {step} or {line}. */
 @Component({
   selector: 'fops-goto-dialog',
-  imports: [WebappSdkModule, UtcPipe],
+  imports: [WebappSdkModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h2 mat-dialog-title>Go to</h2>
@@ -382,7 +382,7 @@ export class ItemInfoDialog {
 
 @Component({
   selector: 'fops-value-dialog',
-  imports: [WebappSdkModule, UtcPipe],
+  imports: [WebappSdkModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h2 mat-dialog-title>{{ data.title }}</h2>
@@ -403,7 +403,7 @@ export interface SettingsData {
 /** The trace limit of an execution. */
 @Component({
   selector: 'fops-settings-dialog',
-  imports: [WebappSdkModule, UtcPipe],
+  imports: [WebappSdkModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h2 mat-dialog-title>Execution settings</h2>
@@ -434,7 +434,7 @@ export class SettingsDialog {
 
 @Component({
   selector: 'fops-prefs-dialog',
-  imports: [WebappSdkModule, UtcPipe],
+  imports: [WebappSdkModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h2 mat-dialog-title>Preferences</h2>

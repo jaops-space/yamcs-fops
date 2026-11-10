@@ -133,8 +133,8 @@ function tree(entries: ProcedureEntry[]): Folder {
                       @if (e.controller?.session === session) {
                         <span class="fops-mute">(this tab)</span>
                       }
-                      @if (e.monitors?.length) {
-                        <div class="fops-mute">monitored by {{ e.monitors!.join(', ') }}</div>
+                      @if (e.monitors.length) {
+                        <div class="fops-mute">monitored by {{ e.monitors.join(', ') }}</div>
                       }
                     }
                   </td>
