@@ -11,7 +11,8 @@ distribution/release.sh
 ```
 
 asks for the version (default: the pom's without `-SNAPSHOT`), sets it in
-`plugin/pom.xml`, `dev/yamcs/pom.xml` and `Cargo.toml`, commits, tags
+`plugin/pom.xml`, `dev/yamcs/pom.xml`, `Cargo.toml` and `vscode/package.json`,
+commits, tags
 `v<version>` (unless the tag exists), builds the web UI and the jar from a
 clean clone of the commit with the profile `jaops-release` (sources, javadoc,
 GPG signature with the Jaops release key `C56E028076F3CCB9`) and, when you
