@@ -1,7 +1,9 @@
 # fops against ECSS-E-ST-70-32C
 
 This matrix maps the fops prototype onto the requirements of ECSS-E-ST-70-32C
-(31 July 2008), *Test and operations procedure language*.
+(31 July 2008), *Test and operations procedure language*
+[Reference](https://ecss.nl/standard/ecss-e-st-70-32c-test-and-operations-procedure-language/).
+
 
 fops does not aim for formal compliance. The goal is the best procedure
 language for Yamcs operations. We adopt the standard's ideas where we judge

@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="488" viewBox="0 0 1000 488" role="img" aria-labelledby="title desc">
+  <title id="title">Yamcs FOPS architecture</title>
+  <desc id="desc">The user or operator works in the Yamcs-web app, in a browser, where the yamcs-fops UI extension adds the Procedures pages (monitoring and control). The Procedures pages talk HTTP, both ways, to the API of the yamcs-fops plugin in the Yamcs server, under /fops/api. The app is served by the Yamcs-web plugin, with which the yamcs-fops plugin registers its UI extension, and gets live values from the Yamcs processor over WebSocket. The yamcs-fops plugin starts one fops run worker process per execution and talks to it over stdio in JSONL (control in, events out). Each worker, a Rust core embedding CPython 3.12+ through PyO3, connects to the Yamcs processor directly: WebSocket for parameters and command history, REST for commands. Blue: Yamcs FOPS, provided by this repository. Grey: the Yamcs ecosystem, provided outside this repository.</desc>
+  <style>
+    .t   { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; font-size: 14px; fill: #1f2328; }
+    .m   { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+    .b   { font-weight: 600; }
+    .s   { font-size: 12px; }
+    .mut { fill: #59636e; }
+    /* outside the boxes: a mid tone that reads on both white and near-black pages */
+    .lbl  { fill: #6e7781; font-size: 12px; }
+    .edge { fill: none; stroke: #6e7781; stroke-width: 1.5; stroke-linejoin: round; }
+    .dash { stroke-dasharray: 4 3; }
+    .head { fill: #6e7781; }
+    /* boxes are opaque, so their text stays readable whatever the page colour */
+    /* grey: the Yamcs ecosystem, provided outside this repository */
+    .group { fill: #f6f8fa; stroke: #afb8c1; stroke-width: 1.2; }
+    .yam   { fill: #eaeef2; stroke: #afb8c1; stroke-width: 1.2; }
+    /* blue: Yamcs FOPS, provided by this repository */
+    .fops  { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
+    .fops2 { fill: #ffffff; stroke: #54aeff; stroke-width: 1.2; }
+    .fops-t { fill: #0a3069; }
+    /* purple: the person */
+    .op    { fill: #fbefff; stroke: #c297ff; stroke-width: 1.2; }
+    .op-t  { fill: #3e1f79; }
+    @media (prefers-color-scheme: dark) {
+      .t    { fill: #e6edf3; }
+      .mut  { fill: #9198a1; }
+      .lbl  { fill: #8d96a0; }
+      .edge { stroke: #8d96a0; }
+      .head { fill: #8d96a0; }
+      .group { fill: #151b23; stroke: #3d444d; }
+      .yam   { fill: #212830; stroke: #3d444d; }
+      .fops  { fill: #0d2847; stroke: #1f6feb; }
+      .fops2 { fill: #0d1117; stroke: #1f6feb; }
+      .fops-t { fill: #a5d6ff; }
+      .op    { fill: #271052; stroke: #8957e5; }
+      .op-t  { fill: #d2a8ff; }
+    }
+  </style>
+
+  <!-- User / operator -->
+  <rect class="op" x="48" y="8" width="180" height="44" rx="22"/>
+  <circle class="op-t" cx="75" cy="24" r="5.5"/>
+  <path class="op-t" d="M65.5,41 a9.5,8.5 0 0 1 19,0 Z"/>
+  <text class="t b op-t" x="91" y="35">User / operator</text>
+
+  <!-- operator ⇄ browser -->
+  <path class="edge" d="M138,61 V79"/>
+  <path class="head" d="M138,52 L133.5,61 L142.5,61 Z"/>
+  <path class="head" d="M138,88 L133.5,79 L142.5,79 Z"/>
+
+  <!-- Browser > Yamcs-web app > Procedures   (the three columns: y 88 to 388) -->
+  <rect class="group" x="16" y="88" width="244" height="300" rx="10"/>
+  <text class="t b" x="32" y="111">Browser</text>
+  <rect class="yam" x="32" y="120" width="212" height="252" rx="8"/>
+  <text class="t b" x="48" y="141">Yamcs-web app</text>
+  <rect class="fops" x="40" y="152" width="196" height="72" rx="6"/>
+  <text class="t b fops-t" x="138" y="177" text-anchor="middle" style="font-size:13px">yamcs-fops UI extension</text>
+  <text class="t s fops-t" x="138" y="196" text-anchor="middle">Procedures</text>
+  <text class="t s fops-t" x="138" y="213" text-anchor="middle">monitoring and control</text>
+
+  <g transform="translate(44 0)">
+  <!-- Yamcs server -->
+  <rect class="group" x="316" y="88" width="260" height="300" rx="10"/>
+  <text class="t b" x="332" y="111">Yamcs server</text>
+  <rect class="fops" x="332" y="152" width="228" height="72" rx="6"/>
+  <text class="t b fops-t" x="446" y="183" text-anchor="middle">yamcs-fops plugin</text>
+  <text class="t s fops-t" x="446" y="203" text-anchor="middle">API · starts the workers</text>
+  <rect class="yam" x="332" y="256" width="228" height="52" rx="6"/>
+  <text class="t b" x="446" y="278" text-anchor="middle">Yamcs-web plugin</text>
+  <text class="t s mut" x="446" y="297" text-anchor="middle">serves the app and extensions</text>
+  <rect class="yam" x="332" y="320" width="228" height="52" rx="6"/>
+  <text class="t b" x="446" y="342" text-anchor="middle">Yamcs processor</text>
+  <text class="t s mut" x="446" y="361" text-anchor="middle">parameters · commands · history</text>
+
+  <!-- yamcs-fops ⇢ Yamcs-web: registers its UI extension -->
+  <path class="edge dash" d="M372,224 V247"/>
+  <path class="head" d="M372,256 L367.5,247 L376.5,247 Z"/>
+  <text class="t s mut" x="384" y="244">registers UI extension</text>
+
+  <!-- Workers: one process per execution -->
+  <rect class="fops" x="716" y="88" width="224" height="284" rx="8"/>
+  <rect class="fops" x="708" y="96" width="224" height="284" rx="8"/>
+  <rect class="fops" x="700" y="104" width="224" height="284" rx="8"/>
+  <text class="t b fops-t" x="812" y="130" text-anchor="middle">Worker</text>
+  <text class="t s fops-t" x="812" y="150" text-anchor="middle">one process per execution</text>
+  <rect class="fops2" x="716" y="164" width="192" height="208" rx="6"/>
+  <text class="t s b fops-t" x="812" y="188" text-anchor="middle">Rust core</text>
+  <text class="t s fops-t" x="812" y="208" text-anchor="middle">Yamcs client · tracing</text>
+  <text class="t s fops-t" x="812" y="226" text-anchor="middle">as-run journal</text>
+  <rect class="fops" x="728" y="252" width="168" height="96" rx="5"/>
+  <text class="t s fops-t" x="812" y="278" text-anchor="middle">CPython 3.12+ (PyO3)</text>
+  <text class="t s fops-t" x="812" y="300" text-anchor="middle">fops package</text>
+  <text class="t s m fops-t" x="812" y="324" text-anchor="middle">procedure.py</text>
+
+  <!-- plugin ⇄ worker -->
+  <path class="edge" d="M569,188 H691"/>
+  <path class="head" d="M560,188 L569,183.5 L569,192.5 Z"/>
+  <path class="head" d="M700,188 L691,183.5 L691,192.5 Z"/>
+  <text class="t lbl b" x="638" y="180" text-anchor="middle">stdio · JSONL</text>
+  <text class="t lbl" x="638" y="206" text-anchor="middle">control ⇄ events</text>
+
+  <!-- worker ⇄ Yamcs processor -->
+  <path class="edge" d="M812,397 V412 Q812,420 804,420 H498 Q490,420 490,412 V381"/>
+  <path class="head" d="M812,388 L807.5,397 L816.5,397 Z"/>
+  <path class="head" d="M490,372 L485.5,381 L494.5,381 Z"/>
+  <text class="t lbl b" x="598" y="412" text-anchor="end">WebSocket</text>
+  <text class="t lbl" x="606" y="412">parameters, command history</text>
+  <text class="t lbl b" x="598" y="440" text-anchor="end">REST</text>
+  <text class="t lbl" x="606" y="440">commands</text>
+  </g>
+
+  <!-- Procedures ⇄ yamcs-fops plugin -->
+  <path class="edge" d="M245,188 H367"/>
+  <path class="head" d="M236,188 L245,183.5 L245,192.5 Z"/>
+  <path class="head" d="M376,188 L367,183.5 L367,192.5 Z"/>
+  <text class="t lbl b" x="310" y="180" text-anchor="middle">HTTP</text>
+  <text class="t lbl m" x="310" y="206" text-anchor="middle">/fops/api</text>
+
+  <!-- Yamcs-web app ⇄ Yamcs-web plugin -->
+  <path class="edge" d="M253,282 H367"/>
+  <path class="head" d="M244,282 L253,277.5 L253,286.5 Z"/>
+  <path class="head" d="M376,282 L367,277.5 L367,286.5 Z"/>
+
+  <!-- Yamcs-web app ⇄ processor -->
+  <path class="edge" d="M253,346 H367"/>
+  <path class="head" d="M244,346 L253,341.5 L253,350.5 Z"/>
+  <path class="head" d="M376,346 L367,341.5 L367,350.5 Z"/>
+  <text class="t lbl b" x="310" y="338" text-anchor="middle">WebSocket</text>
+  <text class="t lbl" x="310" y="364" text-anchor="middle">live values</text>
+
+  <!-- Legend -->
+  <rect class="fops" x="16" y="466" width="18" height="12" rx="3"/>
+  <text class="t lbl" x="42" y="476">Yamcs FOPS (provided by this repository)</text>
+  <rect class="yam" x="330" y="466" width="18" height="12" rx="3"/>
+  <text class="t lbl" x="356" y="476">Yamcs ecosystem (provided outside this repository)</text>
+</svg>

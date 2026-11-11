@@ -10,16 +10,10 @@ Yamcs-web, on the Yamcs server's own port, with Yamcs users and privileges.
 There is no separate fops server. The plugin starts the workers; each worker
 talks to Yamcs directly, for telemetry and commands.
 
-```mermaid
-flowchart LR
-    browser -- HTTP --> plugin
-    subgraph Yamcs
-        plugin["yamcs-fops plugin<br/>/fops/api/…"]
-        api[Yamcs API]
-    end
-    plugin -- stdio JSONL --> worker["fops run<br/>one process per execution<br/>embedded CPython 3.12+ (PyO3)"]
-    worker -- "WebSocket: parameters, command history<br/>REST: commands" --> api
-```
+The main concepts in Yamcs FOPS are based on the ECSS standard ECSS-E-ST-70-32C
+"Test and operations procedure language". See [docs/ecss-e-st-70-32c-compliance.md](docs/ecss-e-st-70-32c-compliance.md).
+
+![Alt text: Yamcs FOPS architecture: browser with Yamcs-web extension, Yamcs server with the yamcs-fops plugin, and one fops run worker per execution](docs/images/architecture.svg)
 
 The workers can also run on another machine than Yamcs, under `fops runner`:
 [docs/remote-workers.md](docs/remote-workers.md).
@@ -422,4 +416,4 @@ Line tracing uses `sys.monitoring` (PEP 669):
 
 ## License
 
-Yamcs FOPS is licensed under the GNU Affero General Public License v3.0, like Yamcs: see `LICENSE`.
+Yamcs FOPS is licensed under the open-source GNU Affero General Public License v3.0, like Yamcs: see `LICENSE`.
