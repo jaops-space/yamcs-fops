@@ -1010,7 +1010,10 @@ class Procedure:
     def __repr__(self) -> str:
         return "<procedure %r %s>" % (self.name, self.version)
 
-    def step(self, name: str, **conditions: Any) -> Callable[[Callable[[], Any]], Callable[[], Any]]:
+    def step(self, name: str, *, description: Optional[str] = None, requires: Conditions = None,
+             goal: Conditions = None, ensures: Conditions = None, invariant: Conditions = None, within: Any = 10.0,
+             cleanup: bool = False, on_unconfirmed: str = "ask", on_aborted: str = "abort",
+             restarts: int = 1) -> Callable[[Callable[[], Any]], Callable[[], Any]]:
         """Decorator: the function is the next step. Steps run in order.
 
         requires=   must hold before the step starts (else the operator decides)
@@ -1021,9 +1024,12 @@ class Procedure:
         within=     seconds for goal and ensures to hold after the body (10)
         cleanup=    also run when the procedure aborts or finishes early
         on_unconfirmed=, on_aborted=, restarts=: the continuation (see module doc)
+        description=  shown to the operator (default: the function's docstring)
         """
         def deco(fn: Callable[[], Any]) -> Callable[[], Any]:
-            self.steps.append(_Step(len(self.steps), name, fn, **conditions))
+            self.steps.append(_Step(len(self.steps), name, fn, description=description, requires=requires, goal=goal,
+                                    ensures=ensures, invariant=invariant, within=within, cleanup=cleanup,
+                                    on_unconfirmed=on_unconfirmed, on_aborted=on_aborted, restarts=restarts))
             return fn
         return deco
 
@@ -1261,9 +1267,24 @@ class Procedure:
         return target
 
 
-def procedure(name: str, **kwargs: Any) -> Procedure:
-    """Declares the procedure of this file (exactly one per file)."""
-    return Procedure(name, **kwargs)
+def procedure(name: str, *, version: str = "0", description: Optional[str] = None, author: Optional[str] = None,
+              requires: Conditions = None, ensures: Conditions = None, invariant: Conditions = None,
+              within: Any = 10.0, args: Optional[dict[str, Arg]] = None, duration: Any = None) -> Procedure:
+    """Declares the procedure of this file (exactly one per file).
+
+    name          the procedure's title
+    version=      its version, e.g. "1.0"
+    description=  what it does; usually __doc__ (the file's docstring)
+    author=       who wrote it
+    requires=     must hold before the first step (else the operator decides)
+    ensures=      must hold once the last step has run
+    invariant=    must hold while the procedure runs (else it aborts)
+    within=       seconds for ensures to hold after the last step (10)
+    args=         the arguments: {"name": Arg(type, default=..., description=...)}
+    duration=     how long a run usually takes (seconds), for the timeline
+    """
+    return Procedure(name, version=version, description=description, author=author, requires=requires,
+                     ensures=ensures, invariant=invariant, within=within, args=args, duration=duration)
 
 
 class _Watcher(threading.Thread):

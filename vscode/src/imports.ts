@@ -1,6 +1,14 @@
 // What a procedure imports from the MDB package, and adding imports to it.
 import { Item, Mdb } from './mdb';
 
+/** The fops API: `fops.__all__` (the tests keep the two the same). */
+export const FOPS_API = [
+    'Arg', 'ArgumentError', 'CommandFailed', 'CommandResult', 'Condition', 'InvariantViolated', 'MdbError',
+    'OperationFailed', 'Parameter', 'ProcedureAborted', 'ProcedureFailed', 'ProcedureResult', 'Running', 'Sent',
+    'SetFailed', 'Snapshot', 'VerificationFailed', 'abort', 'ask', 'finish', 'holds', 'log', 'param', 'procedure',
+    'run', 'send', 'snapshot', 'verify', 'wait', 'wait_until', 'yamcs_client',
+];
+
 export interface ImportStmt {
     module: string;                                // from <module> import ...
     names: { name: string; alias?: string }[];

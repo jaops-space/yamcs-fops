@@ -358,7 +358,7 @@ reviews the procedure, and feed the output back to the generator.
 `vscode/` is a VS Code extension for writing procedures: `fops check` as
 you type, with quick fixes; completion of enumeration labels and of MDB
 names, adding their import; hovers; the steps and the MDB as explorer
-views. See `vscode/README.md`.
+views. See [vscode/README.md](vscode/README.md).
 
 ## Demo: the Yamcs simulator
 
@@ -422,5 +422,4 @@ Line tracing uses `sys.monitoring` (PEP 669):
 
 ## License
 
-fops is licensed under the GNU Affero General Public License v3.0, like
-Yamcs: see `LICENSE`.
+Yamcs FOPS is licensed under the GNU Affero General Public License v3.0, like Yamcs: see `LICENSE`.

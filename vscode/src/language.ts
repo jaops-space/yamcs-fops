@@ -1,7 +1,7 @@
-// Completion and hovers from the MDB: enumeration labels, MDB names with
-// their import, and what a parameter or command is.
+// Completion and hovers from the MDB: enumeration labels, MDB and fops names
+// with their import, and what a parameter or command is.
 import * as vscode from 'vscode';
-import { importEdit, Imports, localName, parseImports, resolve } from './imports';
+import { FOPS_API, importEdit, Imports, localName, parseImports, resolve } from './imports';
 import { Command, Item, matching, Mdb, Parameter } from './mdb';
 import { Workspace } from './workspace';
 
@@ -28,11 +28,11 @@ export class Completion implements vscode.CompletionItemProvider {
 
     provideCompletionItems(doc: vscode.TextDocument, pos: vscode.Position): vscode.CompletionItem[] | vscode.CompletionList | undefined {
         const mdb = this.ws.mdb;
-        if (!mdb || !this.ws.isProcedure(doc)) {
+        if (!this.ws.isProcedure(doc)) {
             return undefined;
         }
         const prefix = doc.lineAt(pos.line).text.slice(0, pos.character);
-        const labels = this.labels(doc, pos, prefix, mdb);
+        const labels = mdb && this.labels(doc, pos, prefix, mdb);
         if (labels) {
             return labels;
         }
@@ -111,20 +111,37 @@ export class Completion implements vscode.CompletionItemProvider {
     }
 
     /**
-     * The MDB parameters and commands matching the word being typed, not
-     * imported yet; picking one adds its import. An MDB has tens of thousands
+     * The fops API names and the MDB parameters and commands matching the
+     * word being typed, not imported yet; picking one adds its import. An MDB has tens of thousands
      * of names: at least MIN_TYPED characters are needed, at most MAX_ITEMS
      * are returned, the list is incomplete (asked again as typing goes on),
      * and documentation is built for the highlighted item only.
      */
-    private names(doc: vscode.TextDocument, mdb: Mdb, typed: string): vscode.CompletionList | undefined {
+    private names(doc: vscode.TextDocument, mdb: Mdb | undefined, typed: string): vscode.CompletionList | undefined {
         if (typed.length < MIN_TYPED) {
             return new vscode.CompletionList([], true);
         }
         const imports = importsOf(doc);
         const lines = doc.getText().split('\n');
         const items: vscode.CompletionItem[] = [];
-        for (const item of matching(mdb, typed)) {
+        for (const name of FOPS_API) {
+            const edit = imports.bindings.has(name) ? undefined : importEdit(imports, 'fops', name, lines);
+            if (!edit) {
+                continue;  // imported, or the name is taken
+            }
+            const fn = /^[a-z]/.test(name);
+            const ci = new vscode.CompletionItem({ label: name, description: 'fops' },
+                fn ? vscode.CompletionItemKind.Function : vscode.CompletionItemKind.Class);
+            ci.detail = `from fops import ${name}`;
+            ci.sortText = '~' + String(items.length).padStart(4, '0');
+            ci.additionalTextEdits = [toTextEdit(doc, edit)];
+            if (fn) {
+                ci.insertText = new vscode.SnippetString(`${name}($0)`);
+                ci.command = { command: 'editor.action.triggerParameterHints', title: '' };
+            }
+            items.push(ci);
+        }
+        for (const item of mdb ? matching(mdb, typed) : []) {
             if (localName(imports, item)) {
                 continue;  // already imported: the Python language server completes it
             }

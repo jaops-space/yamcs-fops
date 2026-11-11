@@ -1,7 +1,8 @@
 // Tests of the parts that do not need VS Code: `npm test`.
 import * as assert from 'assert';
+import * as fs from 'fs';
 import * as path from 'path';
-import { importEdit, parseImports, resolve } from '../imports';
+import { FOPS_API, importEdit, parseImports, resolve } from '../imports';
 import { asString, findMdbPackages, loadMdb, parseArgs } from '../mdb';
 
 const repo = path.resolve(__dirname, '..', '..', '..');
@@ -77,6 +78,15 @@ test('imports, aliases and resolution', () => {
     // no imports: after the docstring
     assert.deepStrictEqual(importEdit(parseImports('"""x"""\nprint(1)\n'), 'mdb.SIMULATOR.tm', 'BusVoltage', ['"""x"""', 'print(1)']),
         { line: 1, endLine: 0, text: 'from mdb.SIMULATOR.tm import BusVoltage' });
+});
+
+test('the fops API completed with its import is fops.__all__', () => {
+    const init = fs.readFileSync(path.join(repo, 'python', 'fops', '__init__.py'), 'utf8');
+    const all = /__all__\s*=\s*\[([^\]]*)\]/.exec(init)![1].match(/"(\w+)"/g)!.map(s => s.slice(1, -1));
+    assert.deepStrictEqual([...FOPS_API].sort(), all.sort());
+    const lines = ['from fops import send', '', 'proc = pro'];
+    assert.deepStrictEqual(importEdit(parseImports(lines.join('\n')), 'fops', 'procedure', lines),
+        { line: 0, endLine: 0, text: 'from fops import procedure, send' });
 });
 
 let failed = 0;

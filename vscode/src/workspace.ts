@@ -52,7 +52,8 @@ export class Workspace implements vscode.Disposable {
         this.changed.fire();
     }
 
-    /** A Python file that imports fops or the MDB package (and is not part of it). */
+    /** A Python file that imports fops or the MDB package, or a new one beside
+     * the MDB package (and is not part of it). */
     isProcedure(doc: vscode.TextDocument): boolean {
         if (doc.languageId !== 'python' || doc.uri.scheme !== 'file') {
             return false;
@@ -63,6 +64,9 @@ export class Workspace implements vscode.Disposable {
         const dir = path.dirname(doc.uri.fsPath);
         if (path.basename(dir) === 'fops' && fs.existsSync(path.join(dir, '_runtime.py'))) {
             return false;  // the fops library itself
+        }
+        if (this.mdb && path.dirname(doc.uri.fsPath) === this.mdb.sourceRoot && !/^\s*(from|import)\s/m.test(doc.getText())) {
+            return true;  // nothing imported yet: completing procedure() imports fops
         }
         const pkg = this.mdb?.packageName ?? 'mdb';
         return new RegExp(`^\\s*(from|import)\\s+(fops|${pkg})\\b`, 'm').test(doc.getText());

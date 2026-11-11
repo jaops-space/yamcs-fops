@@ -2,9 +2,15 @@
   "name": "fops-vscode",
   "displayName": "fops",
   "description": "Writing flight operations procedures for Yamcs: live fops check, MDB completion, hovers and the procedure outline",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "jaops",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jaops-space/yamcs-fops.git",
+    "directory": "vscode"
+  },
+  "homepage": "https://github.com/jaops-space/yamcs-fops/tree/main/vscode",
   "icon": "images/icon.png",
   "galleryBanner": {
     "color": "#141414",
@@ -90,7 +96,7 @@
       },
       {
         "command": "fops.insertItem",
-        "title": "Insert MDB Parameter or Command\u2026",
+        "title": "Insert MDB Parameter or Command…",
         "category": "fops"
       },
       {
@@ -204,7 +210,7 @@
     "compile": "tsc -p .",
     "watch": "tsc -watch -p .",
     "test": "npm run compile && node out/test/run.js",
-    "package": "vsce package --allow-missing-repository",
+    "package": "vsce package",
     "test:vscode": "scripts/integration.sh"
   },
   "devDependencies": {
