@@ -56,7 +56,7 @@ In a Maven Yamcs project (`yamcs-maven-plugin`), add to the `pom.xml`:
 <dependency>
   <groupId>com.jaops.yamcs</groupId>
   <artifactId>yamcs-fops</artifactId>
-  <version>0.1.0</version>
+  <version>0.1.1</version>
 </dependency>
 ```
 
@@ -64,7 +64,7 @@ In a Yamcs installed from its package or tarball, download the jar from
 Maven Central into `lib/ext/` instead. It has no other dependencies:
 
 ```bash
-curl -fLo lib/ext/yamcs-fops-0.1.0.jar https://repo1.maven.org/maven2/com/jaops/yamcs/yamcs-fops/0.1.0/yamcs-fops-0.1.0.jar
+curl -fLo lib/ext/yamcs-fops-0.1.1.jar https://repo1.maven.org/maven2/com/jaops/yamcs/yamcs-fops/0.1.1/yamcs-fops-0.1.1.jar
 ```
 
 ### 3. Configure it
