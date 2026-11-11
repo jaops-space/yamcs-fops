@@ -1,7 +1,8 @@
 # Releasing
 
-One version for both pieces: the tag `v<version>` releases the Python
-package, and `distribution/release.sh` releases the Yamcs plugin with it.
+One version for the three pieces: the tag `v<version>` releases the Python
+package, `distribution/release.sh` releases the Yamcs plugin with it, and
+the VS Code extension is published with the same version.
 
 ## The Yamcs plugin `com.jaops.yamcs:yamcs-fops`
 
@@ -26,6 +27,15 @@ confirm, uploads them to the Central Portal. Then:
    ```
 
    A new tag publishes the Python package of that version (below).
+3. Publish the VS Code extension, which the script has given the same version:
+
+   ```bash
+   cd vscode && npx vsce publish
+   ```
+
+   It needs `npx vsce login jaops` once, with an Azure DevOps personal
+   access token (all accessible organizations, scope Marketplace: Manage).
+   Not `vsce publish patch`: it commits and tags `v<version>` itself.
 
 It needs, on the machine that runs it: the Jaops signing key in GPG, and the
 Central Portal token of the Jaops account as the server `central-jaops` in

@@ -2,7 +2,8 @@
 # Releases the Yamcs plugin (plugin/) to Maven Central, from a clean clone of
 # the committed tree with the web UI built into the jar. The tag v<version>
 # also releases the Python package yamcs-fops to PyPI once pushed (the CI
-# workflow python.yml), so Cargo.toml gets the same version.
+# workflow python.yml), so Cargo.toml gets the same version, and so does the
+# VS Code extension (vscode/package.json, published with vsce).
 set -e
 
 cd `dirname $0`/..
@@ -36,6 +37,7 @@ else
     version=$pomversion
     sed -i "0,/^version = /s/^version = \".*\"/version = \"$version\"/" Cargo.toml
     cargo update -w --offline -q
+    (cd vscode && npm version $version --no-git-tag-version --allow-same-version >/dev/null)
 fi
 
 if [[ -n $(git status -s) ]]; then
@@ -95,4 +97,5 @@ if [ $snapshot -eq 0 ]; then
         exit 1
     fi
     echo "Then: git push origin main v$version (the tag publishes the Python package, if new)"
+    echo "and: (cd vscode && npx vsce publish) for the VS Code extension $version"
 fi
