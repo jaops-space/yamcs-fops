@@ -176,7 +176,7 @@ export class StartDialog {
   /** An ISO string, entered in the user's Yamcs time zone (as elsewhere in Yamcs-web). */
   readonly at = new FormControl<string | null>(new Date(Math.ceil(Date.now() / 60_000) * 60_000 + 600_000).toISOString());
   private readonly atValue = toSignal(this.at.valueChanges, { initialValue: this.at.value });
-  readonly label = new FormControl('Run ' + (this.data.inspect?.name || this.data.path), { nonNullable: true });
+  readonly label = new FormControl(this.data.inspect?.name || this.data.path, { nonNullable: true });
   private readonly labelValue = toSignal(this.label.valueChanges, { initialValue: this.label.value });
   readonly autoStart = new FormControl(true, { nonNullable: true });
   /** "Ns", as the timeline takes it: the guess (data.duration) until edited. ya-duration-input shows only a value set

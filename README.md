@@ -10,17 +10,22 @@ Yamcs-web, on the Yamcs server's own port, with Yamcs users and privileges.
 There is no separate fops server. The plugin starts the workers; each worker
 talks to Yamcs directly, for telemetry and commands.
 
-```
-browser ──HTTP──▶ Yamcs (yamcs-fops plugin, /fops/api/…) ──stdio JSONL──▶ fops run (one process per execution)
-                                                                            │  embedded CPython 3.12+ (PyO3)
-   Yamcs ◀──WebSocket (parameters, command history) + REST (commands)───────┘
+```mermaid
+flowchart LR
+    browser -- HTTP --> plugin
+    subgraph Yamcs
+        plugin["yamcs-fops plugin<br/>/fops/api/…"]
+        api[Yamcs API]
+    end
+    plugin -- stdio JSONL --> worker["fops run<br/>one process per execution<br/>embedded CPython 3.12+ (PyO3)"]
+    worker -- "WebSocket: parameters, command history<br/>REST: commands" --> api
 ```
 
 The workers can also run on another machine than Yamcs, under `fops runner`:
-`docs/remote-workers.md`.
+[docs/remote-workers.md](docs/remote-workers.md).
 
 How the worker is built, and the split between Rust and Python:
-`docs/worker.md`.
+[docs/worker.md](docs/worker.md).
 
 
 ## Add fops to your Yamcs
@@ -161,7 +166,7 @@ The UI must be built before the plugin: `mvn install` packs `web/dist` into
 the jar, and leaves the UI out if it is missing. Yamcs is up when its log
 says `Yamcs started`; open <http://localhost:8090/> (no login), the instance
 `simulator`, **Procedures**. The procedure bucket there is the `procedures/`
-folder: edits on disk show at once. `dev/README.md` has the details;
+folder: edits on disk show at once. [dev/README.md](dev/README.md) has the details;
 [Demo: the Yamcs simulator](#demo-the-yamcs-simulator) lists the procedures.
 
 Without Yamcs-web: check procedures against an instance's MDB without running
@@ -221,7 +226,7 @@ def on():
     send(SWITCH_VOLTAGE_ON(voltage_num=1), confirm=BAT1_ON)
 ```
 
-The language works like this (the full reference is `docs/language.md`):
+The language works like this (the full reference is [docs/language.md](docs/language.md)):
 
 - **Telemetry and telecommands come from the MDB, not from strings.** Each
   Yamcs space system becomes a Python package with a `tm` module (its
@@ -327,7 +332,7 @@ identifiers are sanitized: `from` becomes `from_`, and the original
 `yamcs_name` is kept. `mdb/__init__.py` records the instance, the time of
 generation and a fingerprint of the MDB entries the package is made of.
 The Yamcs plugin regenerates the package in the procedure bucket when an
-instance starts with a different fingerprint (docs/plugin-api.md).
+instance starts with a different fingerprint ([docs/plugin-api.md](docs/plugin-api.md)).
 
 ### `fops check`
 
@@ -359,7 +364,7 @@ views. See `vscode/README.md`.
 
 `procedures/` holds procedures for the PUS simulator of the Yamcs
 repository, which `dev/` runs inside Yamcs (instance `simulator`, see
-`dev/README.md`). The simulator is a small one: three batteries that can be
+[dev/README.md](dev/README.md)). The simulator is a small one: three batteries that can be
 switched off and on, a power bus, PUS connection test (ST[17]) and request
 verification (ST[1]) reports. The battery capacities run down from 100 % to
 0 % in about 8 minutes, then start again.
@@ -380,7 +385,7 @@ step switches battery 1 back on.
 ## As a Yamcs plugin
 
 `plugin/` is the Yamcs plugin `yamcs-fops` (Java 17, Yamcs 5.14.0). It
-serves the API of `docs/plugin-api.md` under `/fops/api/{instance}/` with
+serves the API of [docs/plugin-api.md](docs/plugin-api.md) under `/fops/api/{instance}/` with
 Yamcs authentication and the `fops.*` privileges, starts one `fops run`
 worker per execution, makes each execution a Yamcs activity (type
 `PROCEDURE`, which the timeline can also schedule), and adds the web UI

@@ -453,6 +453,11 @@ public class ExecState {
         return e == null || e.isJsonNull() ? dflt : e.getAsString();
     }
 
+    static boolean bool(JsonObject ev, String field, boolean dflt) {
+        var e = ev.get(field);
+        return e == null || !e.isJsonPrimitive() ? dflt : e.getAsBoolean();
+    }
+
     static long num(JsonObject ev, String field, long dflt) {
         var e = ev.get(field);
         if (e == null || e.isJsonNull()) {

@@ -587,9 +587,9 @@ def charged():
 
 Each step goes through the execution states of ECSS-E-ST-70-32C:
 
-```
-preconditions ──▶ executing ──▶ confirmation ──▶ completed
- (goal, requires)   (the body)    (goal, ensures)
+```mermaid
+flowchart LR
+    pre["preconditions<br/>(goal, requires)"] --> exe["executing<br/>(the body)"] --> conf["confirmation<br/>(goal, ensures)"] --> done[completed]
 ```
 
 and ends with a confirmation status:

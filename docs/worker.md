@@ -5,20 +5,19 @@ One worker process runs one execution of one procedure. The Yamcs plugin
 and reads its events on stdout, one JSON object per line
 (`src/protocol.rs`). It also runs on its own from a terminal.
 
-```
-           stdin: Control (JSONL)                 stdout: Event (JSONL)
-server ───────────────────────────▶ worker ───────────────────────────▶ server
-                                      │  as-run journal (--asrun, JSONL, fsynced)
-                                      ▼
-                                    Yamcs: WebSocket (parameters, command history)
-                                           REST (commands, first reads, fallback)
+```mermaid
+flowchart LR
+    starter["fops plugin (in Yamcs)<br/>or fops runner"] -- "stdin: Control (JSONL)" --> worker
+    worker -- "stdout: Event (JSONL)" --> starter
+    worker -- "--asrun (JSONL, fsynced)" --> journal[(as-run journal)]
+    worker -- "WebSocket: parameters, command history<br/>REST: commands, first reads, fallback" --> yamcs[Yamcs API]
 ```
 
-Started by a server (`--control`), a worker sets its own `oom_score_adj`
+Started by the plugin or a runner (`--control`), a worker sets its own `oom_score_adj`
 to 1000: if memory runs out, the kernel kills a worker before Yamcs.
 `--memory-limit 512M` caps its data memory (`RLIMIT_DATA`): a procedure
 going over gets a `MemoryError`. A worker can also run on another machine,
-started by `fops runner` (docs/remote-workers.md).
+started by `fops runner` ([remote-workers.md](remote-workers.md)).
 
 ## Rust and Python
 
@@ -40,7 +39,7 @@ waits. And the tracer must be able to interrupt any wait (abort, jump,
 violated invariant) and then run service work on the procedure's thread.
 
 The rule of thumb: a change to what a procedure means goes in Python; a
-change to how the worker talks to Yamcs, the server or the disk goes in Rust.
+change to how the worker talks to Yamcs, the plugin or runner, or the disk goes in Rust.
 
 ## Threads
 

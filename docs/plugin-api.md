@@ -113,7 +113,7 @@ The plugin registers these Yamcs system privileges. Superusers have all.
 | `fops.Control` | take control; every control while in control; answer prompts |
 | `fops.Shell` | `eval` and `set_variable` |
 | `fops.Kill` | kill an execution (any controller) |
-| `fops.Runner` | connect as a runner, fetch the procedures' files (`/fops-runner/`; docs/remote-workers.md) |
+| `fops.Runner` | connect as a runner, fetch the procedures' files (`/fops-runner/`; [remote-workers.md](remote-workers.md)) |
 
 Answering a `command` prompt (SEVERE/CRITICAL confirmation) also needs the
 Yamcs `Command` object privilege for that command.

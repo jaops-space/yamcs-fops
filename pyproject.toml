@@ -8,7 +8,7 @@ build-backend = "maturin"
 [project]
 name = "yamcs-fops"
 description = "Flight operations procedures for Yamcs: the worker and the procedure language"
-readme = "README.md"
+readme = "python/README.md"
 requires-python = ">=3.12"
 license = "AGPL-3.0-only"
 license-files = ["LICENSE"]

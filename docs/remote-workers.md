@@ -18,19 +18,22 @@ memory protection works there too (see "Isolation" below): it is in
 
 ## Shape
 
-```
- Yamcs container                                   runner container (N of them)
-┌──────────────────────────────┐   one WebSocket   ┌───────────────────────────────┐
-│ fops plugin                  │◀──────────────────│ fops runner                   │
-│  Executions ─ Execution      │   per runner,     │  ├─ fops run  (execution 12)  │
-│               └ Worker:      │   opened by the   │  ├─ fops run  (execution 13)  │
-│                  Local       │   runner          │  └─ fops inspect ...          │
-│                  Remote ─────┼───────────────────│                               │
-│  blobs endpoint (procedures) │◀── HTTP GET ──────│  snapshot cache, journals     │
-└──────────────────────────────┘                   └──────────────┬────────────────┘
-              ▲                                                    │
-              └──────── Yamcs REST + WebSocket (as today) ─────────┘
-                        from each worker, with the operator's token
+```mermaid
+flowchart LR
+    subgraph rc [runner containers]
+        runner["fops runner<br/>snapshot cache, journals"] --> workers["fops run (execution 12)<br/>fops run (execution 13)<br/>fops inspect ..."]
+    end
+    subgraph yc [Yamcs container]
+        subgraph plugin [fops plugin]
+            exec[Executions, Execution] --> local[Worker: Local]
+            exec --> remote[Worker: Remote]
+            blobs["blobs endpoint (procedures)"]
+        end
+        yamcs[Yamcs REST + WebSocket]
+    end
+    runner -- "one WebSocket per runner,<br/>opened by the runner" --> remote
+    runner -- HTTP GET --> blobs
+    workers -- "as today, with the<br/>operator's token" --> yamcs
 ```
 
 - **`fops runner`**: a new subcommand of the same binary. A long-running
