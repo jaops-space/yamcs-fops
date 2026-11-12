@@ -99,6 +99,10 @@ With Yamcs security on, grant the `fops.*` system privileges in
 | `fops.Shell` | evaluate Python in a paused procedure, set variables |
 | `fops.Kill` | kill any execution |
 
+`fops.Shell` runs arbitrary Python in the procedure's process, with the
+access of the account the runner runs as: give it only to users you would
+trust to write and start procedures.
+
 Procedures send commands and read parameters as the user who started them,
 with that user's Yamcs privileges.
 
