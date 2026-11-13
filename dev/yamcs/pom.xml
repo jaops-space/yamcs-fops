@@ -36,7 +36,7 @@
     <dependency>
       <groupId>com.jaops.yamcs</groupId>
       <artifactId>yamcs-fops</artifactId>
-      <version>0.2.1</version>
+      <version>0.2.2-SNAPSHOT</version>
     </dependency>
   </dependencies>
 
