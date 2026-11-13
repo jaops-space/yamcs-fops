@@ -95,8 +95,8 @@ process (stderr to the log file). `RemoteWorker` speaks the protocol below,
 through `Runners` (the connected runners, the choice of one, inspections)
 and `RunnerConnection` (one WebSocket). Abort escalation, linger, sub-procedures,
 controller model and activities are above this interface and unchanged.
-`WorkerToken` writes to a sink: the token file (local), or a `token`
-message (remote).
+`WorkerToken` writes to the worker: a `token` control on its stdin (local),
+or a `token` message (remote), which the runner writes to the worker's stdin.
 
 `Procedures.inspect` goes through the same switch: in remote mode it asks a
 runner (results cached by modification time as today; no runner connected
@@ -127,18 +127,18 @@ load      {capacity}                  capacity changed (0: draining)
 Plugin → runner:
 
 ```
-start    {x, instance, procedure, manifest: {path: sha256}, flags: [...], token?}
+start    {x, instance, procedure, manifest: {path: sha256}, flags: [...], token?, user?}
 control  {x, line}               a stdin line
 close    {x}                     close stdin
 kill     {x}
-token    {x, token}              a renewed access token
+token    {x, token, user}        a renewed access token, or another user's
 resume   {x, n, files: {asrun, log}}   after hello: the plugin has events up to n and the files up to these offsets
 forget   {x}                     ended and stored: the runner may delete its files
 inspect  {req, instance, manifest, path}
 ```
 
 `flags` are the plugin's command line minus what the runner owns (the
-procedure file, `--asrun`, `--yamcs`, `--yamcs-token-file`,
+procedure file, `--asrun`, `--yamcs`, `--yamcs-token-stdin`,
 `--memory-limit`); the runner adds those. `--yamcs` is the runner's own
 `--yamcs` unless it has `--worker-yamcs`.
 
@@ -190,10 +190,10 @@ it a persistent volume; otherwise an `emptyDir` is enough.
   The runner receives operators' tokens, so this account is as sensitive as
   the Yamcs host: give it no other privilege, and keep the traffic inside the
   cluster or on TLS.
-- Workers authenticate as today: the plugin mints the operator's (or the
-  service user's) token and pushes each renewal with `token`; the runner
-  writes it to the worker's token file. Revocation at the end stays in the
-  plugin.
+- Workers authenticate as local ones do: the plugin mints the operator's (or
+  the service user's, then the controller's) token and pushes each renewal
+  with `token`; the runner writes it to the worker's stdin, never to a file,
+  so one worker cannot read another's. Revocation stays in the plugin.
 
 ## Failures
 

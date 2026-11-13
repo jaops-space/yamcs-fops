@@ -84,10 +84,21 @@ this server (loopback, HTTP port, context path), the instance and processor.
 ### Worker authentication
 
 If Yamcs security is on, the plugin starts each worker with
-`--yamcs-token-file <file>` and keeps a valid access token for the user who
-started the execution in that file (rewriting it before expiry). The worker
-sends `Authorization: Bearer <contents>` and re-reads the file on 401. So
-commands appear in Yamcs command history under the operator's name.
+`--yamcs-token-stdin` and gives it an access token for the user who started
+the execution as the first line of its stdin, a `token` control
+(`{"cmd":"token","token","user"}`), then a renewed one at half its lifespan.
+The worker keeps it in memory only and sends `Authorization: Bearer <token>`.
+So commands appear in Yamcs command history under the operator's name.
+
+When another user takes control (`:takeControl`), the worker gets a token for
+that user, opens its WebSocket again with it, and answers with a
+`{"type":"token_applied","user"}` event (journaled in the as-run, not in the
+event stream). The plugin then revokes the earlier user's tokens, or after
+10 s without the answer. A request already sent with the earlier token and
+refused (401) is sent again with the new one: a refused request did nothing
+in Yamcs, so it cannot be done twice. The execution acts as its controller
+from then on, its sub-procedures included. Releasing control, or losing it, changes nothing: it
+keeps acting as the last controller.
 
 The timeline starts its activities as the System user. With security on, a
 procedure it starts runs as the instance's **service user** (`serviceUser`)
@@ -279,7 +290,8 @@ likewise the `seq` of call records goes to `call_seq`. The
 `seq` of the events endpoint and of the State is the event sequence number.
 
 The plugin also emits its own events into the stream:
-`{"type":"control", "controller": {user, session}|null, "monitors": [...], "background"}`,
+`{"type":"control", "controller": {user, session}|null, "monitors": [...], "background", "runs_as"}`
+(`runs_as`: the user the worker acts as in Yamcs, with security on),
 `{"type":"controller_lost", "user", "action": "paused"}`,
 `{"type":"killed"}`.
 

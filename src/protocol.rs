@@ -54,6 +54,9 @@ pub enum Event {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         line: Option<u32>,
     },
+    /// A `token` control for another user is in use: the server revokes the
+    /// earlier user's tokens on this (also journaled: who the procedure acts as).
+    TokenApplied { user: String },
     /// An event built by the Python runtime (procedure, step, log, verify,
     /// watch...), already serialised as a JSON object with a "type".
     #[serde(skip)]
@@ -163,6 +166,14 @@ pub enum Control {
         id: Option<u64>,
         #[serde(default)]
         error: Option<String>,
+    },
+    /// The worker's Yamcs access token, held in memory only: the first line
+    /// with `--yamcs-token-stdin`, then renewals. `user` is who it is for: the
+    /// starter, then whoever takes control.
+    Token {
+        token: String,
+        #[serde(default)]
+        user: Option<String>,
     },
     /// The sub-procedure of call `seq` has ended.
     CallEnded {

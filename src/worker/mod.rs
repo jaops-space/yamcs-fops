@@ -72,6 +72,11 @@ pub struct WorkerArgs {
     /// procedure going over it gets a MemoryError.
     #[arg(long, value_parser = parse_size)]
     pub memory_limit: Option<u64>,
+    /// The Yamcs access token comes on stdin: the first line is a `token`
+    /// control, and later ones replace it (with --control). It is only held
+    /// in memory.
+    #[arg(long)]
+    pub yamcs_token_stdin: bool,
     #[command(flatten)]
     pub yamcs: YamcsConfig,
 }
@@ -150,7 +155,8 @@ pub fn run(args: WorkerArgs) -> Result<i32> {
         Some(p) => Some(std::fs::OpenOptions::new().create(true).append(true).open(p)?),
         None => None,
     };
-    lang::init(Yamcs::new(&args.yamcs), journal, args.sub_procedures && args.control);
+    let token = if args.yamcs_token_stdin { Some(first_token()?) } else { None };
+    lang::init(Yamcs::new(&args.yamcs, token), journal, args.sub_procedures && args.control);
 
     let out: Box<dyn Write + Send> = match args.events.as_str() {
         "-" => Box::new(std::io::stdout()),
@@ -315,6 +321,17 @@ sys.modules['_fops'] = m",
     .map_err(|e| Python::attach(|py| anyhow::anyhow!("{}", e.value(py))))
 }
 
+/// The first line of stdin, a `token` control (`--yamcs-token-stdin`). The
+/// control loop reads the following ones: stdin's buffer is shared.
+fn first_token() -> Result<(String, Option<String>)> {
+    let mut line = String::new();
+    std::io::stdin().lock().read_line(&mut line).context("reading the Yamcs token from stdin")?;
+    match serde_json::from_str::<Control>(&line) {
+        Ok(Control::Token { token, user }) => Ok((token, user)),
+        _ => anyhow::bail!("--yamcs-token-stdin: the first line of stdin is not a token control"),
+    }
+}
+
 fn control_loop(ctl: Arc<Ctl>) {
     let stdin = std::io::stdin();
     for line in stdin.lock().lines() {
@@ -434,6 +451,10 @@ fn apply(ctl: &Ctl, c: Control) {
         Control::Eval { request_id, expr } => request(ctl, tracer::Request::Eval { request_id, expr }),
         Control::CallStarted { seq, id, error } => {
             lang::call_started(seq, id, error);
+            false
+        }
+        Control::Token { token, user } => {
+            lang::set_token(token, user);
             false
         }
         Control::CallEnded { seq, status, confirmation, message } => {

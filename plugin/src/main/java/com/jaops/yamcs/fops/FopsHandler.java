@@ -175,7 +175,7 @@ public class FopsHandler extends BodyHandler {
         switch (action) {
         case "takeControl":
             require(user, FopsPlugin.CONTROL);
-            e.takeControl(session, user.getName());
+            e.takeControl(session, user);
             break;
         case "releaseControl":
             require(user, FopsPlugin.CONTROL);

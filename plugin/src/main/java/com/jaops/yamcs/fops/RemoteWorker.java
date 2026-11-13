@@ -39,6 +39,7 @@ class RemoteWorker implements Worker {
     private CompletableFuture<Void> started;
     private boolean exited;
     private String token;
+    private String tokenUser;
     private long events;
     private long asrunEnd;
     private long logEnd;
@@ -77,6 +78,7 @@ class RemoteWorker implements Worker {
             m.addProperty("x", key);
             if (token != null) {
                 m.addProperty("token", token);
+                m.addProperty("user", tokenUser);
             }
             runners.register(this);
             conn.send(m);
@@ -166,16 +168,18 @@ class RemoteWorker implements Worker {
         return !exited && !finished;
     }
 
-    /** A renewed access token (the token's sink). */
-    void token(String jwt) {
+    @Override
+    public void token(String jwt, String user) {
         synchronized (this) {
             token = jwt;
+            tokenUser = user;
             if (started == null) {
                 return; // goes with the start
             }
         }
         var m = msg("token");
         m.addProperty("token", jwt);
+        m.addProperty("user", user);
         deliver(m);
     }
 
@@ -294,6 +298,7 @@ class RemoteWorker implements Worker {
         if (token != null) {
             var t = msg("token");
             t.addProperty("token", token);
+            t.addProperty("user", tokenUser);
             c.send(t);
         }
         pending.forEach(c::send);

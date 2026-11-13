@@ -11,6 +11,8 @@ import java.util.Map;
 
 import org.yamcs.logging.Log;
 
+import com.google.gson.JsonObject;
+
 /** A worker run as a child process of Yamcs; its stderr goes to the execution's log file. */
 class LocalWorker implements Worker {
     private static final Log log = new Log(LocalWorker.class);
@@ -21,6 +23,8 @@ class LocalWorker implements Worker {
     private final Path logFile;
     private Process process;
     private OutputStream stdin;
+    /** The token control, until it is started. */
+    private String token;
 
     LocalWorker(long id, List<String> command, Map<String, String> env, Path cwd, Path logFile) {
         this.id = id;
@@ -31,12 +35,16 @@ class LocalWorker implements Worker {
     }
 
     @Override
-    public void start(Listener listener) throws IOException {
+    public synchronized void start(Listener listener) throws IOException {
         var pb = new ProcessBuilder(command).directory(cwd.toFile())
                 .redirectError(ProcessBuilder.Redirect.appendTo(logFile.toFile()));
         pb.environment().putAll(env);
         process = pb.start();
         stdin = process.getOutputStream();
+        if (token != null) {
+            send(token);
+            token = null;
+        }
         log.info("Execution {}: {} (pid {})", id, String.join(" ", command), process.pid());
         var reader = new Thread(() -> read(listener), "fops-" + id + "-stdout");
         reader.setDaemon(true);
@@ -63,13 +71,30 @@ class LocalWorker implements Worker {
     }
 
     @Override
-    public void send(String line) throws IOException {
+    public synchronized void send(String line) throws IOException {
         stdin.write((line + "\n").getBytes(StandardCharsets.UTF_8));
         stdin.flush();
     }
 
     @Override
-    public void closeInput() {
+    public synchronized void token(String jwt, String user) {
+        var c = new JsonObject();
+        c.addProperty("cmd", "token");
+        c.addProperty("token", jwt);
+        c.addProperty("user", user);
+        if (stdin == null) {
+            token = c.toString(); // goes first when it starts
+            return;
+        }
+        try {
+            send(c.toString());
+        } catch (IOException e) {
+            log.debug("Execution {}: token not sent: {}", id, e.getMessage());
+        }
+    }
+
+    @Override
+    public synchronized void closeInput() {
         try {
             stdin.close();
         } catch (IOException e) {

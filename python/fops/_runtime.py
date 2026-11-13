@@ -1439,7 +1439,9 @@ def yamcs_client() -> Any:
     procedure's Yamcs as the operator running it. `client.instance` and
     `client.processor` name the procedure's instance and processor.
 
-    Its calls are not journaled, and an abort waits for the one in progress."""
+    Its calls are not journaled, and an abort waits for the one in progress. Its
+    requests go as whoever controls the procedure (see the README), but a
+    subscription keeps the user it was opened as."""
     global _client
     if _client is None:
         try:
@@ -1448,19 +1450,20 @@ def yamcs_client() -> Any:
             raise ImportError("yamcs_client() needs the yamcs-client package in the worker's Python "
                               "(pip install yamcs-client)") from None
 
-        url, instance, processor, token_file = _fops.yamcs_connection()
+        url, instance, processor = _fops.yamcs_connection()
 
         class WorkerToken(Credentials):
-            """The worker's token, read again before each request: the server renews it."""
+            """The worker's current token, before each request: the server renews it, and
+            replaces it with another user's when another operator takes control."""
             def login(self, *args: Any, **kwargs: Any) -> Any:
                 return self
 
             def before_request(self, session: Any, auth_url: str) -> None:
-                if token_file:
-                    with open(token_file) as f:
-                        session.headers["Authorization"] = "Bearer " + f.read().strip()
+                token = _fops.yamcs_token()
+                if token:
+                    session.headers["Authorization"] = "Bearer " + token
 
-        client = YamcsClient(url, credentials=WorkerToken() if token_file else None,
+        client = YamcsClient(url, credentials=WorkerToken() if _fops.yamcs_token() else None,
                              user_agent="fops procedure")
         client.instance, client.processor = instance, processor
         _client = client

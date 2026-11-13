@@ -13,6 +13,7 @@
 //! with a backoff, and everything is subscribed again.
 
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
+use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -25,7 +26,7 @@ use tungstenite::http::HeaderValue;
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{Message, WebSocket};
 
-use super::{Ack, ParamValue, Yamcs, YamcsConfig, acks, id_name, param_value, qualify, read_token, string_attrs};
+use super::{Ack, ParamValue, Token, Yamcs, YamcsConfig, acks, id_name, param_value, qualify, string_attrs};
 use crate::worker::lang::worker_message;
 
 /// Origin of the commands fops issues (and of the history entries it keeps).
@@ -46,7 +47,21 @@ pub struct Live {
     /// Names to subscribe, for the connection thread.
     subscribe: Mutex<Sender<Vec<String>>>,
     on_change: OnceLock<fn()>,
+    /// The token is now another user's: the connection is opened again.
+    reconnect: AtomicBool,
 }
+
+/// The connection was closed to be opened again with another user's token.
+#[derive(Debug)]
+struct Reconnect;
+
+impl std::fmt::Display for Reconnect {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("reconnecting as another user")
+    }
+}
+
+impl std::error::Error for Reconnect {}
 
 #[derive(Default)]
 struct State {
@@ -86,7 +101,7 @@ struct Conn {
     url: String,
     instance: String,
     processor: String,
-    token_file: Option<std::path::PathBuf>,
+    token: Arc<Token>,
 }
 
 enum Pending {
@@ -95,13 +110,14 @@ enum Pending {
 }
 
 impl Live {
-    pub fn start(base: &str, cfg: &YamcsConfig) -> Arc<Live> {
+    pub fn start(base: &str, cfg: &YamcsConfig, token: Arc<Token>) -> Arc<Live> {
         let (tx, rx) = mpsc::channel();
         let live = Arc::new(Live {
             state: Mutex::new(State::default()),
             changed: Condvar::new(),
             subscribe: Mutex::new(tx),
             on_change: OnceLock::new(),
+            reconnect: AtomicBool::new(false),
         });
         let base = base.trim_end_matches('/');
         let url = match base.split_once("://") {
@@ -113,11 +129,16 @@ impl Live {
             url,
             instance: cfg.instance.clone(),
             processor: cfg.processor.clone(),
-            token_file: cfg.yamcs_token_file.clone(),
+            token,
         };
         let l = live.clone();
         let _ = std::thread::Builder::new().name("yamcs-ws".into()).spawn(move || l.run(conn, rx));
         live
+    }
+
+    /// Closes the connection and opens it again (with the current token).
+    pub fn reconnect(&self) {
+        self.reconnect.store(true, Relaxed);
     }
 
     /// Also called after every update (from the connection thread, no lock held).
@@ -240,6 +261,13 @@ impl Live {
             first &= !self.state.lock().connected;
             let e = match r {
                 Ok(()) => return, // the worker is going away
+                Err(e) if e.is::<Reconnect>() => {
+                    self.state.lock().connected = false;
+                    self.disconnected();
+                    first = true; // no "connected again"
+                    backoff = Duration::from_secs(1);
+                    continue;
+                }
                 Err(e) => format!("{e:#}"),
             };
             let was_connected = std::mem::replace(&mut self.state.lock().connected, false);
@@ -273,7 +301,9 @@ impl Live {
     fn session(&self, conn: &Conn, rx: &Receiver<Vec<String>>, first: bool) -> Result<()> {
         let mut req = conn.url.as_str().into_client_request()?;
         req.headers_mut().insert("Sec-WebSocket-Protocol", HeaderValue::from_static("json"));
-        if let Some(t) = conn.token_file.as_deref().and_then(read_token) {
+        self.reconnect.store(false, Relaxed);
+        conn.token.reload();
+        if let Some(t) = conn.token.get() {
             req.headers_mut().insert("Authorization", HeaderValue::from_str(&format!("Bearer {t}"))?);
         }
         let (mut ws, _) = tungstenite::connect(req).with_context(|| format!("connecting to {}", conn.url))?;
@@ -336,6 +366,10 @@ impl Live {
         let mut last_rx = Instant::now();
         let mut last_ping = Instant::now();
         loop {
+            if self.reconnect.load(Relaxed) {
+                let _ = ws.close(None);
+                return Err(Reconnect.into());
+            }
             match rx.try_recv() {
                 Ok(mut names) => {
                     while let Ok(more) = rx.try_recv() {

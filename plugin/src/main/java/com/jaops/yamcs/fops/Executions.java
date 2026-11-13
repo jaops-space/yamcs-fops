@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -287,7 +286,7 @@ public class Executions {
 
         var e = new Execution(id, instance, file, req, user.getName(), base, asrun, logFile, timer,
                 this::promptAlert);
-        e.calls = (parent, r) -> startCall(parent, r, user);
+        e.calls = (parent, r) -> startCall(parent, r, parent.runsAs());
 
         var cmd = new ArrayList<String>(List.of("--control", "--linger", "--sub-procedures", "--events", "-"));
         for (var line : req.breakpoints) {
@@ -312,16 +311,11 @@ public class Executions {
             cmd.addAll(List.of("--args", req.args.toString()));
         }
         var secure = YamcsServer.getServer().getSecurityStore().isEnabled();
-        WorkerToken token = null;
         Worker worker;
         if (runners != null) {
-            // the runner adds the procedure file, --asrun, --yamcs and --yamcs-token-file
-            var rw = runners.worker(instance, id, req.procedure, procedures.get(instance).manifest(), cmd, asrun,
+            // the runner adds the procedure file, --asrun, --yamcs and --yamcs-token-stdin
+            worker = runners.worker(instance, id, req.procedure, procedures.get(instance).manifest(), cmd, asrun,
                     logFile);
-            if (secure) {
-                token = new WorkerToken(user.getName(), rw::token);
-            }
-            worker = rw;
         } else {
             cmd.addAll(0, List.of(config.executable, "run", file.toString()));
             cmd.addAll(List.of("--asrun", asrun.toString(), "--yamcs", yamcsUrl()));
@@ -329,14 +323,7 @@ public class Executions {
                 cmd.addAll(List.of("--memory-limit", config.workerMemory));
             }
             if (secure) {
-                var dir = config.dataDir.resolve("tokens");
-                if (!Files.isDirectory(dir)) {
-                    Files.createDirectories(dir,
-                            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-                }
-                var tokenFile = dir.resolve(id + ".token");
-                token = new WorkerToken(user.getName(), WorkerToken.file(tokenFile));
-                cmd.addAll(List.of("--yamcs-token-file", tokenFile.toString()));
+                cmd.add("--yamcs-token-stdin");
             }
             var env = new HashMap<String, String>();
             if (config.python != null) {
@@ -344,9 +331,12 @@ public class Executions {
             }
             worker = new LocalWorker(id, cmd, env, procedures.get(instance).root(), logFile);
         }
-        if (token != null) {
+        WorkerToken token = null;
+        if (secure) {
+            token = new WorkerToken(user.getName(), worker::token);
             token.start(timer);
         }
+        e.runAs(user, token);
         inst.all.put(id, e);
         var t = token;
         try {
@@ -419,7 +409,7 @@ public class Executions {
         return JsonParser.parseString(new String(data, StandardCharsets.UTF_8)).getAsJsonObject();
     }
 
-    /** A sub-procedure of {@code parent}: an execution of the same instance, by the same user. */
+    /** A sub-procedure of {@code parent}: an execution of the same instance, as the user the parent runs as. */
     private Execution startCall(Execution parent, StartRequest req, User user) throws IOException {
         if (!user.hasSystemPrivilege(FopsPlugin.START)) {
             throw FopsException.forbidden("user " + user.getName() + " lacks privilege " + FopsPlugin.START);

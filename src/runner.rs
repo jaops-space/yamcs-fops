@@ -16,7 +16,7 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
-use std::os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt};
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
@@ -347,8 +347,7 @@ fn handle(m: Value) {
             if let Some(e) = exec() {
                 let mut st = e.st.lock();
                 if let Some(stdin) = st.stdin.as_mut() {
-                    let line = m["line"].as_str().unwrap_or("");
-                    if stdin.write_all(line.as_bytes()).and_then(|_| stdin.write_all(b"\n")).and_then(|_| stdin.flush()).is_err() {
+                    if write_line(stdin, m["line"].as_str().unwrap_or("")).is_err() {
                         st.stdin = None;
                     }
                 }
@@ -366,8 +365,11 @@ fn handle(m: Value) {
         }
         "token" => {
             if let Some(e) = exec() {
-                if let Err(err) = write_token(&e.dir, m["token"].as_str().unwrap_or("")) {
-                    eprintln!("[runner] {x}: token: {err}");
+                let mut st = e.st.lock();
+                if let Some(stdin) = st.stdin.as_mut() {
+                    if write_line(stdin, &token_control(&m)).is_err() {
+                        st.stdin = None;
+                    }
                 }
             }
         }
@@ -418,9 +420,10 @@ fn start(x: &str, m: &Value) -> Result<()> {
     }
     cmd.arg("--asrun").arg(&asrun);
     cmd.arg("--yamcs").arg(r().args.worker_yamcs.as_deref().unwrap_or(&r().base));
-    if let Some(t) = m["token"].as_str() {
-        write_token(&dir, t)?;
-        cmd.arg("--yamcs-token-file").arg(dir.join("token"));
+    // the token goes to the worker's stdin, never to a file
+    let token = m["token"].is_string().then(|| token_control(m));
+    if token.is_some() {
+        cmd.arg("--yamcs-token-stdin");
     }
     if let Some(b) = r().args.worker_memory {
         cmd.arg("--memory-limit").arg(b.to_string());
@@ -438,13 +441,19 @@ fn start(x: &str, m: &Value) -> Result<()> {
         }
     };
     let pid = child.id() as i32;
+    let mut stdin = child.stdin.take();
+    if let (Some(t), Some(i)) = (&token, stdin.as_mut()) {
+        if let Err(err) = write_line(i, t) {
+            eprintln!("[runner] {x}: token: {err}");
+        }
+    }
     let e = Arc::new(Exec {
         x: x.to_string(),
         dir,
         snapshot,
         pid,
         st: Mutex::new(ExecState {
-            stdin: child.stdin.take(),
+            stdin,
             ring: VecDeque::new(),
             n: 0,
             live: true,
@@ -568,11 +577,15 @@ fn kill(e: &Exec) {
     }
 }
 
-fn write_token(dir: &Path, token: &str) -> std::io::Result<()> {
-    let tmp = dir.join("token.tmp");
-    let mut f = std::fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(&tmp)?;
-    f.write_all(token.as_bytes())?;
-    std::fs::rename(tmp, dir.join("token"))
+fn write_line(w: &mut impl Write, line: &str) -> std::io::Result<()> {
+    w.write_all(line.as_bytes())?;
+    w.write_all(b"\n")?;
+    w.flush()
+}
+
+/// The worker's `token` control for a `start` or `token` message of the plugin.
+fn token_control(m: &Value) -> String {
+    json!({"cmd": "token", "token": m["token"], "user": m["user"]}).to_string()
 }
 
 /// The plugin is back with everything up to event `n` and these file offsets.

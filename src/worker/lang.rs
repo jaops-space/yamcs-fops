@@ -235,11 +235,27 @@ fn prompt(
     r
 }
 
-/// (base URL, instance, processor, token file) of the worker's Yamcs.
+/// (base URL, instance, processor) of the worker's Yamcs.
 #[pyfunction]
-fn yamcs_connection() -> PyResult<(String, String, String, Option<String>)> {
-    let (base, instance, processor, token_file) = yamcs()?.connection();
-    Ok((base.into(), instance.into(), processor.into(), token_file.map(|f| f.to_string_lossy().into_owned())))
+fn yamcs_connection() -> PyResult<(String, String, String)> {
+    let (base, instance, processor) = yamcs()?.connection();
+    Ok((base.into(), instance.into(), processor.into()))
+}
+
+/// The worker's current Yamcs access token, if any: renewed by the server,
+/// and another user's after another operator takes control.
+#[pyfunction]
+fn yamcs_token() -> PyResult<Option<String>> {
+    Ok(yamcs()?.token())
+}
+
+/// A `token` control. For another user, the worker says when it is in use.
+pub fn set_token(token: String, user: Option<String>) {
+    let Some(y) = LANG.get().and_then(|l| l.yamcs.as_ref()) else { return };
+    let applied = user.clone().filter(|_| y.set_token(token, user));
+    if let (Some(user), Some(_)) = (applied, tracer::try_tracer()) {
+        record(Event::TokenApplied { user }, false);
+    }
 }
 
 /// (by_step, confirm_commands)
@@ -872,5 +888,6 @@ pub fn module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
     m.add_function(wrap_pyfunction!(options, &m)?)?;
     m.add_function(wrap_pyfunction!(pause_next, &m)?)?;
     m.add_function(wrap_pyfunction!(yamcs_connection, &m)?)?;
+    m.add_function(wrap_pyfunction!(yamcs_token, &m)?)?;
     Ok(m)
 }

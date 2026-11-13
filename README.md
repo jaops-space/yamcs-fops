@@ -99,12 +99,17 @@ With Yamcs security on, grant the `fops.*` system privileges in
 | `fops.Shell` | evaluate Python in a paused procedure, set variables |
 | `fops.Kill` | kill any execution |
 
-`fops.Shell` runs arbitrary Python in the procedure's process, with the
-access of the account the runner runs as: give it only to users you would
-trust to write and start procedures.
-
 Procedures send commands and read parameters as the user who started them,
-with that user's Yamcs privileges.
+with that user's Yamcs privileges. A user who takes control of an execution
+takes it over in Yamcs too: from then on it acts as them, with their
+privileges, and the earlier user's access tokens are revoked. So what the
+controller does, the shell included, is never done with someone else's rights.
+
+`fops.Shell` runs arbitrary Python in the procedure's process, with the
+access of the operating system account the worker runs as. Workers started by
+Yamcs itself run as the Yamcs account, so there it can do anything Yamcs can:
+give `fops.Shell` only to users you trust as Yamcs administrators, or run the
+workers on a [runner](docs/remote-workers.md) under an account of their own.
 
 Procedures scheduled on the Yamcs timeline have no such user: with security
 on they run as a **service user** you name, and without one their start
@@ -184,7 +189,7 @@ come from stdin):
     --yamcs http://localhost:8090 --instance simulator --asrun asrun.jsonl
 ```
 
-Releasing the Python package `yamcs-fops`: [docs/releasing.md](docs/releasing.md).
+Releasing the plugin, the Python package and the VS Code extension: [docs/releasing.md](docs/releasing.md).
 
 ## A procedure
 

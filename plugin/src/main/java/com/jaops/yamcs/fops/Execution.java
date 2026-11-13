@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.yamcs.logging.Log;
+import org.yamcs.security.User;
 
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
@@ -88,6 +89,10 @@ public class Execution {
     private boolean controlChanged;
 
     private Worker worker;
+    /** The user the worker acts as in Yamcs: who started it, then whoever takes control. */
+    private volatile User runsAs;
+    /** Its token, with security on. */
+    private WorkerToken token;
     private final BlockingQueue<String> controls = new LinkedBlockingQueue<>();
     private volatile String killedBy;
     private volatile boolean abortEscalated;
@@ -177,6 +182,17 @@ public class Execution {
         return o;
     }
 
+    /** Before {@link #start}. */
+    void runAs(User user, WorkerToken token) {
+        this.runsAs = user;
+        this.token = token;
+    }
+
+    /** The user the worker acts as in Yamcs, and starts sub-procedures as. */
+    User runsAs() {
+        return runsAs;
+    }
+
     /** Starts the worker. Called once. */
     void start(Worker worker, Runnable onEnd) throws IOException {
         this.onEnd = onEnd;
@@ -245,6 +261,12 @@ public class Execution {
     void workerEvent(JsonObject ev) {
         // the command and call records have their own sequence number
         var type = ExecState.str(ev, "type", "");
+        if ("token_applied".equals(type)) {
+            if (token != null) {
+                token.applied(ExecState.str(ev, "user", ""));
+            }
+            return; // in the as-run journal, not in the stream
+        }
         if ("command".equals(type) && ev.has("seq")) {
             ev.add("command_seq", ev.remove("seq"));
         }
@@ -497,8 +519,13 @@ public class Execution {
         }
     }
 
-    public void takeControl(String session, String user) {
+    /**
+     * The worker then acts as {@code u} in Yamcs: what the controller does (the shell included) is done with the
+     * controller's privileges, never with those of an earlier user.
+     */
+    public void takeControl(String session, User u) {
         requireSession(session);
+        var user = u.getName();
         synchronized (events) {
             if (controller != null && !isController(session, user)) {
                 throw FopsException.forbidden("execution " + id + " is controlled by "
@@ -510,6 +537,17 @@ public class Execution {
             controller = person(user, session);
             background = false;
             touch(session, user, 0);
+            if (runsAs != null && !user.equals(runsAs.getName())) {
+                log.info("Execution {}: now runs as {} (was {})", id, user, runsAs.getName());
+                runsAs = u;
+                if (token != null) {
+                    try {
+                        token.setUser(user);
+                    } catch (IOException e) {
+                        log.error("Execution {}: no token for {}: {}", id, user, e.toString());
+                    }
+                }
+            }
             emitControl();
         }
     }
@@ -585,6 +623,9 @@ public class Execution {
         monitorUsers().forEach(m::add);
         ev.add("monitors", m);
         ev.addProperty("background", background);
+        if (runsAs != null) {
+            ev.addProperty("runs_as", runsAs.getName());
+        }
         emit(ev);
     }
 

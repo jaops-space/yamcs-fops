@@ -22,6 +22,12 @@ interface Worker {
     /** A control line to its stdin; may block (the execution sends from its own thread). */
     void send(String line) throws IOException;
 
+    /**
+     * Its Yamcs access token, for {@code user}: a {@code token} control, sent ahead of the others when it starts
+     * ({@code --yamcs-token-stdin}).
+     */
+    void token(String jwt, String user);
+
     /** Closes its stdin: a lingering worker exits, a running one aborts. */
     void closeInput();
 

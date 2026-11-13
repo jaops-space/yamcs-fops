@@ -50,5 +50,7 @@ exclude = [
     { path = "python/tests/**", format = "sdist" },
     { path = ".github/**", format = "sdist" },
     { path = ".vscode/**", format = "sdist" },
+    { path = "distribution/**", format = "sdist" },
+    { path = "dist/**", format = "sdist" },
 ]
 strip = true

@@ -102,8 +102,10 @@ acknowledgement is journaled (fsynced) before it is reported.
 
 - The connection opens at worker start, so it is usually up before the
   first command.
-- With `--yamcs-token-file`, the handshake sends the token. The file is
-  read again on each reconnection.
+- The handshake sends the current token (`--yamcs-token-stdin`: the latest
+  `token` control; `--yamcs-token-file`: the file, read again on each
+  reconnection). A `token` control for another user closes the connection and
+  opens it again with the new token, without waiting.
 - A ping goes out every 10 s. 30 s with nothing received closes the
   connection.
 - On loss, the cache is marked unusable at once: reads go to REST and

@@ -1,13 +1,9 @@
 package com.jaops.yamcs.fops;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.security.GeneralSecurityException;
 import java.util.ArrayDeque;
+import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -25,11 +21,16 @@ import org.yamcs.security.AuthenticationInfo;
 import org.yamcs.security.AuthenticationToken;
 import org.yamcs.security.AuthorizationInfo;
 
+import com.google.gson.JsonObject;
+
 /**
- * The access token of a worker, for the user who started the execution: minted as Yamcs's {@code /auth/token} does
- * (an HS256 JWT with the server's secret, registered in the {@code TokenStore}), given to the worker (a {@link Sink}:
- * a file only the Yamcs user can read, or a message to its runner), and replaced at half its lifespan. The previous token stays valid until the next replacement, so a
- * worker reading the file just before is not refused; all are revoked when the execution ends.
+ * The access token of a worker, for the user it runs as: who started the execution, then whoever takes control of it.
+ * Minted as Yamcs's {@code /auth/token} does (an HS256 JWT with the server's secret, registered in the
+ * {@code TokenStore}), given to the worker through its control channel (a {@link Sink}), never written to a file, and
+ * replaced at half its lifespan. The previous token stays valid until the next replacement, so a request sent just
+ * before is not refused. When the user changes, the earlier user's tokens are revoked once the worker says it uses the
+ * new one ({@code token_applied}), or after {@link #APPLY_TIMEOUT_S} if it does not; all are revoked when the worker
+ * exits.
  */
 public class WorkerToken {
     private static final Log log = new Log(WorkerToken.class);
@@ -64,41 +65,20 @@ public class WorkerToken {
         }
     };
 
-    /** Where the tokens go. */
+    /** Where the tokens go: the worker. */
     interface Sink {
-        void write(String token) throws IOException;
-
-        /** The worker no longer needs tokens. */
-        default void close() {
-        }
+        void write(String token, String user) throws IOException;
     }
 
-    /** A file only the Yamcs user can read, replaced atomically; deleted at the end. */
-    static Sink file(Path file) {
-        return new Sink() {
-            @Override
-            public void write(String jwt) throws IOException {
-                var tmp = file.resolveSibling(file.getFileName() + ".tmp");
-                Files.deleteIfExists(tmp);
-                Files.createFile(tmp,
-                        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
-                Files.writeString(tmp, jwt, StandardCharsets.US_ASCII);
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            }
+    /** How long the earlier user's tokens stay valid at most, waiting for {@code token_applied}. */
+    static final long APPLY_TIMEOUT_S = 10;
 
-            @Override
-            public void close() {
-                try {
-                    Files.deleteIfExists(file);
-                } catch (IOException e) {
-                    log.warn("Could not delete {}: {}", file, e.getMessage());
-                }
-            }
-        };
-    }
-
-    private final String username;
+    private String username;
     private final Sink sink;
+    private long ttl;
+    private ScheduledExecutorService timer;
+    /** The earlier users' tokens, until the worker uses the current user's. */
+    private final ArrayDeque<String> retiring = new ArrayDeque<>();
     private final ArrayDeque<String> tokens = new ArrayDeque<>();
     private ScheduledFuture<?> refresh;
 
@@ -108,30 +88,83 @@ public class WorkerToken {
     }
 
     public synchronized void start(ScheduledExecutorService timer) throws IOException {
+        this.timer = timer;
         var yamcs = YamcsServer.getServer();
-        long ttl = Math.max(10, yamcs.getSecurityStore().getAccessTokenLifespan() / 1000);
-        write(ttl);
+        ttl = Math.max(10, yamcs.getSecurityStore().getAccessTokenLifespan() / 1000);
+        write();
         long period = Math.max(5, ttl / 2);
         refresh = timer.scheduleAtFixedRate(() -> {
             try {
-                write(ttl);
+                write();
             } catch (IOException | RuntimeException e) {
                 log.error("Could not renew the worker token of {}", username, e);
             }
         }, period, period, TimeUnit.SECONDS);
     }
 
-    private synchronized void write(long ttl) throws IOException {
+    public synchronized String user() {
+        return username;
+    }
+
+    /**
+     * Gives the worker a token for {@code user} from now on. The earlier user's tokens are revoked when the worker
+     * says it uses the new one ({@link #applied}), so its requests are not refused meanwhile, or after
+     * {@link #APPLY_TIMEOUT_S} (at once if the new one could not be sent): it must not keep acting as the earlier user.
+     */
+    public synchronized void setUser(String user) throws IOException {
+        if (user.equals(username) || refresh == null || refresh.isCancelled()) {
+            return;
+        }
+        username = user;
+        retiring.addAll(tokens);
+        tokens.clear();
+        try {
+            write();
+        } catch (IOException | RuntimeException e) {
+            revokeRetiring();
+            throw e;
+        }
+        timer.schedule(this::revokeRetiring, APPLY_TIMEOUT_S, TimeUnit.SECONDS);
+    }
+
+    /** The worker's {@code token_applied}: it uses {@code user}'s token. */
+    public synchronized void applied(String user) {
+        if (user.equals(username)) {
+            revokeRetiring();
+        }
+    }
+
+    private synchronized void revokeRetiring() {
+        if (retiring.isEmpty()) {
+            return;
+        }
+        var httpServer = YamcsServer.getServer().getGlobalService(HttpServer.class);
+        if (httpServer != null) {
+            retiring.forEach(httpServer.getTokenStore()::revokeAccessToken);
+        }
+        retiring.clear();
+    }
+
+    private synchronized void write() throws IOException {
         var yamcs = YamcsServer.getServer();
         String jwt;
         try {
-            jwt = JwtHelper.generateHS256Token("Yamcs", username, yamcs.getSecretKey(), (int) ttl);
+            // Yamcs's claims, plus a unique jti: without it, a token minted in the same second as the user's own
+            // login token is the same string, and revoking ours would log the user out.
+            var claims = new JsonObject();
+            long now = System.currentTimeMillis() / 1000;
+            claims.addProperty("iss", "Yamcs");
+            claims.addProperty("sub", username);
+            claims.addProperty("iat", now);
+            claims.addProperty("exp", now + ttl);
+            claims.addProperty("jti", UUID.randomUUID().toString());
+            jwt = JwtHelper.generateHS256Token(claims, yamcs.getSecretKey());
         } catch (GeneralSecurityException e) {
             throw new IOException(e);
         }
         var tokenStore = yamcs.getGlobalService(HttpServer.class).getTokenStore();
         tokenStore.registerAccessToken(jwt, new AuthenticationInfo(WORKER_AUTH, username));
-        sink.write(jwt);
+        sink.write(jwt, username);
         tokens.addLast(jwt);
         while (tokens.size() > 2) {
             tokenStore.revokeAccessToken(tokens.removeFirst());
@@ -147,6 +180,6 @@ public class WorkerToken {
             tokens.forEach(httpServer.getTokenStore()::revokeAccessToken);
         }
         tokens.clear();
-        sink.close();
+        revokeRetiring();
     }
 }

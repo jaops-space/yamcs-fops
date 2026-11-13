@@ -10,9 +10,11 @@
 //! Parameter values and command history also come from a WebSocket
 //! subscription (`live`), with these endpoints as the fallback.
 //!
-//! With `--yamcs-token-file`, requests carry `Authorization: Bearer <file
-//! contents>`; on 401 the file is read again (the plugin rewrites it before
-//! the token expires) and the request is retried once.
+//! Requests carry `Authorization: Bearer <token>`. In a worker of the Yamcs
+//! plugin the token comes on the control channel (`token` controls: renewals,
+//! and a new user when another operator takes control), and is only held in
+//! memory. With `--yamcs-token-file` it is read from that file, again on 401,
+//! and the request is retried once.
 
 pub mod live;
 
@@ -48,9 +50,28 @@ pub struct Yamcs {
     base: String,
     instance: String,
     processor: String,
-    token_file: Option<PathBuf>,
-    token: Mutex<Option<String>>,
+    token: Arc<Token>,
     live: Arc<live::Live>,
+}
+
+/// The access token, shared by the REST requests and the WebSocket.
+pub struct Token {
+    file: Option<PathBuf>,
+    /// (token, the user it is for, when given on the control channel)
+    value: Mutex<(Option<String>, Option<String>)>,
+}
+
+impl Token {
+    fn get(&self) -> Option<String> {
+        self.value.lock().0.clone()
+    }
+
+    /// Reads the token file again, if any; true if there is one.
+    fn reload(&self) -> bool {
+        let Some(f) = &self.file else { return false };
+        self.value.lock().0 = read_token(f);
+        true
+    }
 }
 
 #[derive(Clone)]
@@ -72,43 +93,76 @@ pub fn qualify(name: &str) -> String {
 }
 
 impl Yamcs {
-    pub fn new(cfg: &YamcsConfig) -> Option<Self> {
+    /// `token`: the first token and its user, from the control channel
+    /// (`--yamcs-token-stdin`); otherwise `--yamcs-token-file`, if given.
+    pub fn new(cfg: &YamcsConfig, token: Option<(String, Option<String>)>) -> Option<Self> {
         let url = cfg.url.as_ref()?;
-        let live = live::Live::start(url, cfg);
+        let token = Arc::new(match token {
+            Some((t, user)) => Token { file: None, value: Mutex::new((Some(t), user)) },
+            None => Token {
+                file: cfg.yamcs_token_file.clone(),
+                value: Mutex::new((cfg.yamcs_token_file.as_ref().and_then(|f| read_token(f)), None)),
+            },
+        });
+        let live = live::Live::start(url, cfg, token.clone());
         Some(Yamcs {
             http: reqwest::blocking::Client::builder().timeout(Duration::from_secs(60)).build().ok()?,
             base: url.trim_end_matches('/').to_string(),
             instance: cfg.instance.clone(),
             processor: cfg.processor.clone(),
-            token_file: cfg.yamcs_token_file.clone(),
-            token: Mutex::new(cfg.yamcs_token_file.as_ref().and_then(|f| read_token(f))),
+            token,
             live,
         })
+    }
+
+    /// A token from the control channel: a renewal, or one for another user
+    /// (another operator took control), whose WebSocket is opened again.
+    /// True if it is another user's.
+    pub fn set_token(&self, token: String, user: Option<String>) -> bool {
+        let mut v = self.token.value.lock();
+        let other = user.is_some() && v.1.is_some() && user != v.1;
+        *v = (Some(token), user.or(v.1.take()));
+        drop(v);
+        if other {
+            self.live.reconnect();
+        }
+        other
+    }
+
+    /// The current token, if any.
+    pub fn token(&self) -> Option<String> {
+        self.token.get()
     }
 
     pub fn live(&self) -> &live::Live {
         &self.live
     }
 
-    /// (base URL, instance, processor, token file)
-    pub fn connection(&self) -> (&str, &str, &str, Option<&std::path::Path>) {
-        (&self.base, &self.instance, &self.processor, self.token_file.as_deref())
+    /// (base URL, instance, processor)
+    pub fn connection(&self) -> (&str, &str, &str) {
+        (&self.base, &self.instance, &self.processor)
     }
 
-    /// Sends the request built by `req`, authenticated; on 401 reads the
-    /// token file again and retries once.
+    /// Sends the request built by `req`, authenticated. On 401 it is sent
+    /// once more if the token changed meanwhile (the server revoked the one
+    /// it went with: renewal, another user) or the token file has a new
+    /// one. A 401 means Yamcs did nothing: the retry cannot do it twice.
     fn send(&self, req: impl Fn() -> RequestBuilder) -> reqwest::Result<Response> {
-        let with_token = |r: RequestBuilder| match self.token.lock().as_deref() {
+        let with_token = |r: RequestBuilder, t: &Option<String>| match t {
             Some(t) => r.bearer_auth(t),
             None => r,
         };
-        let resp = with_token(req()).send()?;
+        let used = self.token.get();
+        let resp = with_token(req(), &used).send()?;
         if resp.status() != StatusCode::UNAUTHORIZED {
             return Ok(resp);
         }
-        let Some(f) = &self.token_file else { return Ok(resp) };
-        *self.token.lock() = read_token(f);
-        with_token(req()).send()
+        self.token.reload();
+        let now = self.token.get();
+        if now == used {
+            return Ok(resp);
+        }
+        with_token(req(), &now).send()
     }
 
     fn processor_url(&self) -> String {
