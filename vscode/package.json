@@ -2,7 +2,7 @@
   "name": "fops-vscode",
   "displayName": "fops",
   "description": "Writing flight operations procedures for Yamcs: live fops check, MDB completion, hovers and the procedure outline",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "publisher": "jaops",
   "license": "MIT",
   "repository": {

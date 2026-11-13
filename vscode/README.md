@@ -71,7 +71,7 @@ npm run package
 ```
 
 ```bash
-code --install-extension fops-vscode-0.1.1.vsix
+code --install-extension fops-vscode-0.2.0.vsix
 ```
 
 Or open `vscode/` in VS Code and press F5. Tests: `npm test` (MDB parsing
