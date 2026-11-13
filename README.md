@@ -106,10 +106,17 @@ privileges, and the earlier user's access tokens are revoked. So what the
 controller does, the shell included, is never done with someone else's rights.
 
 `fops.Shell` runs arbitrary Python in the procedure's process, with the
-access of the operating system account the worker runs as. Workers started by
-Yamcs itself run as the Yamcs account, so there it can do anything Yamcs can:
-give `fops.Shell` only to users you trust as Yamcs administrators, or run the
-workers on a [runner](docs/remote-workers.md) under an account of their own.
+access of the operating system account the worker runs as. By default Yamcs
+starts the workers itself, as the Yamcs account: then the shell can do
+anything Yamcs can, read its secret key (and so make an access token for any
+user) included. That is fine for Yamcs on a laptop without security; with
+security on, give `fops.Shell` only to users you trust as Yamcs
+administrators.
+
+Where Yamcs users must be kept apart, run the workers on a **runner** under an
+account of their own, on the same host or another: the shell then reaches
+only what that account can, and acts in Yamcs only as the procedure's
+controller. See [docs/remote-workers.md](docs/remote-workers.md#on-the-yamcs-host-under-another-account).
 
 Procedures scheduled on the Yamcs timeline have no such user: with security
 on they run as a **service user** you name, and without one their start

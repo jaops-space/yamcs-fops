@@ -16,6 +16,10 @@ the workers itself, as before, and nothing else is deployed. Most of the
 memory protection works there too (see "Isolation" below): it is in
 `fops run`, not in the runner.
 
+Runners also keep Yamcs users apart: a runner on the Yamcs host itself, under
+an account of its own, keeps procedures and the shell away from Yamcs's files
+and secret key (see "On the Yamcs host, under another account" below).
+
 ## Shape
 
 ```mermaid
@@ -189,7 +193,11 @@ it a persistent volume; otherwise an `emptyDir` is enough.
   blobs.
   The runner receives operators' tokens, so this account is as sensitive as
   the Yamcs host: give it no other privilege, and keep the traffic inside the
-  cluster or on TLS.
+  cluster or on TLS. The runner reads its secret once, at start (from a file,
+  which can be `/dev/stdin`, or the environment), keeps it from its workers'
+  environment, and makes itself non-dumpable: its workers run as its account
+  and must not get it, or they could connect as a runner and receive other
+  executions' tokens.
 - Workers authenticate as local ones do: the plugin mints the operator's (or
   the service user's, then the controller's) token and pushes each renewal
   with `token`; the runner writes it to the worker's stdin, never to a file,
@@ -251,6 +259,79 @@ image no longer needs Python at all in remote mode.
 Kubernetes, typically: a Deployment of runners (replicas for capacity),
 memory limit ≥ capacity × worker memory + margin, the client secret mounted,
 a NetworkPolicy letting runners reach only Yamcs.
+
+## On the Yamcs host, under another account
+
+Procedures, and the shell (`fops.Shell`), run arbitrary Python. Local
+workers run as the Yamcs account, so they can read and change all of Yamcs's
+files: its configuration, its users, its archive, and the `secretKey` of
+`yamcs.yaml`, with which they could make an access token for any user. That
+is fine for Yamcs on a laptop, without security. Where users must be kept
+apart, a runner on the same host under an account of its own gives the
+workers only what that account can do, and in Yamcs only the token of the
+procedure's controller.
+
+1. An account for the runner and its workers, which cannot read Yamcs's
+   files (`etc/` at least, and the data directory):
+
+   ```bash
+   sudo useradd --system --home-dir /var/lib/fops-runner --shell /usr/sbin/nologin fops-runner
+   ```
+
+2. A Yamcs account for the runner, with the system privilege `fops.Runner`
+   only: a service account (client credentials) or a user. Put its secret in
+   a file only root can read, e.g. `/etc/fops-runner/secret` (`0400`,
+   `root:root`).
+
+3. The runner as a systemd service. systemd opens the secret before
+   switching to `fops-runner`, so it reaches the runner on stdin and its file
+   stays out of the workers' reach; the runner reads it once, at start:
+
+   ```ini
+   # /etc/systemd/system/fops-runner.service
+   [Unit]
+   Description=fops runner
+   After=network.target
+
+   [Service]
+   User=fops-runner
+   StateDirectory=fops-runner
+   StandardInput=file:/etc/fops-runner/secret
+   ExecStart=/opt/fops/bin/fops runner --yamcs http://127.0.0.1:8090 \
+       --client-id fops-runner --client-secret-file /dev/stdin \
+       --data /var/lib/fops-runner --capacity 4 --worker-memory 512M
+   Restart=always
+   NoNewPrivileges=yes
+   PrivateTmp=yes
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+   (`/opt/fops` being a virtual environment with `pip install yamcs-fops`,
+   and what the procedures import.)
+
+4. In `yamcs.yaml`, `fops: {workers: remote}`, and restart Yamcs.
+
+What it keeps:
+
+- **Yamcs's files and secret key**: out of reach of the procedures and the
+  shell.
+- **The runner's secret**: read once from stdin, never in the workers'
+  environment. The runner is not dumpable, so processes of its own account
+  (its workers) can read neither its memory (its secret, the operators'
+  tokens it relays) nor its environment.
+- **Each worker's token**: given on its stdin and held in memory only, never
+  in a file. With the kernel's default `ptrace_scope` of 1, a worker cannot
+  read another's memory. With 0 it could: keep it at 1 or more.
+
+What it does not:
+
+- The workers share the account: one can read the snapshots of the others'
+  procedures, and kill them.
+- The network: a worker reaches what the host reaches. Restrict it with the
+  firewall or systemd (`IPAddressDeny=any`, `IPAddressAllow=localhost` in the
+  unit), if needed.
 
 ## Not done
 

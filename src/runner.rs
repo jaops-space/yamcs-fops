@@ -91,6 +91,9 @@ struct Runner {
     name: String,
     exe: PathBuf,
     http: reqwest::blocking::Client,
+    /// The client secret or password, read once at start: the workers run as
+    /// the same account, so it must not stay where they can read it.
+    secret: Option<String>,
     token: Mutex<Option<String>>,
     /// The current connection's outgoing messages; None while disconnected.
     out: Mutex<Option<Sender<String>>>,
@@ -135,7 +138,34 @@ fn r() -> &'static Runner {
     RUNNER.get().expect("runner")
 }
 
+/// The environment variables of the runner's credentials, kept from its workers.
+const SECRET_VARS: [&str; 2] = ["FOPS_RUNNER_CLIENT_SECRET", "FOPS_RUNNER_PASSWORD"];
+
+/// The client secret or password: from its file (e.g. /dev/stdin), else its
+/// environment variable.
+fn read_secret(a: &RunnerArgs) -> Result<Option<String>> {
+    let (file, var) = if a.client_id.is_some() {
+        (&a.client_secret_file, SECRET_VARS[0])
+    } else if a.user.is_some() {
+        (&a.password_file, SECRET_VARS[1])
+    } else {
+        return Ok(None); // Yamcs without security
+    };
+    Ok(Some(match file {
+        Some(f) => std::fs::read_to_string(f).with_context(|| format!("{}", f.display()))?.trim().to_string(),
+        None => std::env::var(var).with_context(|| format!("no {var}"))?,
+    }))
+}
+
 pub fn run(args: RunnerArgs) -> Result<()> {
+    // Not dumpable: processes of the same account, its own workers included,
+    // can read neither its memory (operators' tokens, its secret) nor its
+    // environment (/proc/<pid>/environ). Workers are dumpable again: exec resets it.
+    // SAFETY: prctl with integer arguments.
+    if unsafe { libc::prctl(libc::PR_SET_DUMPABLE, 0, 0, 0, 0) } != 0 {
+        eprintln!("[runner] cannot make itself non-dumpable: {}", std::io::Error::last_os_error());
+    }
+    let secret = read_secret(&args)?;
     let name = args.name.clone().unwrap_or_else(|| {
         std::fs::read_to_string("/proc/sys/kernel/hostname").map(|s| s.trim().to_string()).unwrap_or("runner".into())
     });
@@ -157,6 +187,7 @@ pub fn run(args: RunnerArgs) -> Result<()> {
         name,
         exe,
         http: reqwest::blocking::Client::builder().timeout(Duration::from_secs(60)).build()?,
+        secret,
         token: Mutex::new(None),
         out: Mutex::new(None),
         execs: Mutex::new(HashMap::new()),
@@ -198,20 +229,12 @@ fn send(m: Value) {
 
 fn login() -> Result<Option<String>> {
     let a = &r().args;
+    let Some(secret) = r().secret.clone() else { return Ok(None) }; // Yamcs without security
     let form: Vec<(&str, String)> = if let Some(id) = &a.client_id {
-        let secret = match &a.client_secret_file {
-            Some(f) => std::fs::read_to_string(f).with_context(|| format!("{}", f.display()))?.trim().to_string(),
-            None => std::env::var("FOPS_RUNNER_CLIENT_SECRET").context("no client secret")?,
-        };
         vec![("grant_type", "client_credentials".into()), ("client_id", id.clone()), ("client_secret", secret)]
-    } else if let Some(user) = &a.user {
-        let password = match &a.password_file {
-            Some(f) => std::fs::read_to_string(f).with_context(|| format!("{}", f.display()))?.trim().to_string(),
-            None => std::env::var("FOPS_RUNNER_PASSWORD").context("no password")?,
-        };
-        vec![("grant_type", "password".into()), ("username", user.clone()), ("password", password)]
     } else {
-        return Ok(None); // Yamcs without security
+        let user = a.user.clone().unwrap_or_default();
+        vec![("grant_type", "password".into()), ("username", user), ("password", secret)]
     };
     let body: String = form_urlencoded::Serializer::new(String::new()).extend_pairs(form).finish();
     let resp = r()
@@ -414,6 +437,9 @@ fn start(x: &str, m: &Value) -> Result<()> {
     std::fs::create_dir_all(&dir)?;
     let asrun = dir.join("asrun.jsonl");
     let mut cmd = Command::new(&r().exe);
+    for v in SECRET_VARS {
+        cmd.env_remove(v);
+    }
     cmd.arg("run").arg(&file);
     for f in m["flags"].as_array().into_iter().flatten() {
         cmd.arg(f.as_str().unwrap_or(""));
@@ -814,6 +840,8 @@ fn inspect(m: &Value) -> Result<String> {
     let snapshot = snapshot(instance, &m["manifest"])?;
     let result = (|| {
         let mut child = Command::new(&r().exe)
+            .env_remove(SECRET_VARS[0])
+            .env_remove(SECRET_VARS[1])
             .arg("inspect")
             .arg(path)
             .current_dir(&snapshot)
